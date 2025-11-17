@@ -6,6 +6,9 @@ export const authRouter = {
   getSession: publicProcedure.query(({ ctx }) => {
     return ctx.session;
   }),
+  test: publicProcedure.query(({ ctx }) => {
+    return 'PUBLIC'
+  }),
   getSecretMessage: protectedProcedure.query(() => {
     return "you can see this secret message!";
   }),

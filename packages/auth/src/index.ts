@@ -13,8 +13,8 @@ export function initAuth<
   productionUrl: string;
   secret: string | undefined;
 
-  discordClientId: string;
-  discordClientSecret: string;
+  // discordClientId: string;
+  // discordClientSecret: string;
   extraPlugins?: TExtraPlugins;
 }) {
   const config = {
@@ -31,11 +31,11 @@ export function initAuth<
       ...(options.extraPlugins ?? []),
     ],
     socialProviders: {
-      discord: {
-        clientId: options.discordClientId,
-        clientSecret: options.discordClientSecret,
-        redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
-      },
+      // discord: {
+      //   clientId: options.discordClientId,
+      //   clientSecret: options.discordClientSecret,
+      //   redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
+      // },
     },
     trustedOrigins: ["expo://"],
     onAPIError: {
@@ -43,6 +43,9 @@ export function initAuth<
         console.error("BETTER AUTH API ERROR", error, ctx);
       },
     },
+    emailAndPassword: {
+      enabled: true,
+    }
   } satisfies BetterAuthOptions;
 
   return betterAuth(config);
