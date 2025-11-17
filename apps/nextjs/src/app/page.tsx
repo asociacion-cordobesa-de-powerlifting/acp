@@ -1,10 +1,10 @@
-import { fetchQuery, HydrateClient, trpc } from "~/trpc/server";
+import { HydrateClient, queryClient, trpc } from "~/trpc/server";
 import { AuthShowcase } from "./_components/auth-showcase";
 
 export default async function HomePage() {
 
   const query = trpc.auth.test.queryOptions()
-  const data = await fetchQuery(query)
+  const data = await queryClient.fetchQuery(query)
 
   console.log('Data', data)
 
