@@ -8,6 +8,6 @@
     },
     "plugins": [{ "name": "next" }]
   },
-  "include": [".", ".next/types/**/*.ts"],
+  "include": [".", ".next/types/**/*.ts", "../../packages/ui/src/icons"],
   "exclude": ["node_modules"]
 }

@@ -25,9 +25,11 @@
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
     "better-auth": "catalog:",
+    "lucide-react": "^0.553.0",
     "next": "^16.0.0",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
+    "react-icons": "^5.5.0",
     "superjson": "2.2.3",
     "zod": "catalog:"
   },
