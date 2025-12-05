@@ -11,10 +11,12 @@
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
-  @media (width >= --theme(--breakpoint-sm)) {
+
+  @media (width >=--theme(--breakpoint-sm)) {
     max-width: none;
   }
-  @media (width >= 1400px) {
+
+  @media (width >=1400px) {
     max-width: 1400px;
   }
 }
@@ -23,7 +25,13 @@
   * {
     @apply border-border;
   }
+
   body {
     letter-spacing: var(--tracking-normal);
   }
+}
+
+/* Global selection styling */
+::selection {
+  @apply bg-accent text-primary-foreground;
 }
