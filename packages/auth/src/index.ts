@@ -2,7 +2,7 @@ import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, oAuthProxy } from "better-auth/plugins";
+import { admin, oAuthProxy, username } from "better-auth/plugins";
 
 import { db } from "@acme/db/client";
 
@@ -18,6 +18,7 @@ export function initAuth<
   extraPlugins?: TExtraPlugins;
 }) {
   const config = {
+    appName: "ACP (Asociación Cordobesa de Powerlifting)",
     database: drizzleAdapter(db, {
       provider: "pg",
     }),
@@ -28,8 +29,9 @@ export function initAuth<
         productionURL: options.productionUrl,
       }),
       expo(),
-      ...(options.extraPlugins ?? []),
       admin(),
+      username(),
+      ...(options.extraPlugins ?? []),
     ],
     socialProviders: {
       // discord: {
@@ -46,6 +48,9 @@ export function initAuth<
     },
     emailAndPassword: {
       enabled: true,
+    },
+    advanced: {
+      cookiePrefix: "acp-auth"
     }
   } satisfies BetterAuthOptions;
 

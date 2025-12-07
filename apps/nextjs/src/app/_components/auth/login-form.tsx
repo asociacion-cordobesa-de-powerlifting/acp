@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "@tanstack/react-form";
-import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 
@@ -52,23 +52,7 @@ export default function LoginForm({
 }: LoginFormProps) {
   const router = useRouter();
 
-  const login = useMutation({
-    mutationFn: async (values: z.infer<typeof LoginSchema>) => {
-      const { error } = await authClient.signIn.email({
-        email: values.email,
-        password: values.password,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Sesión iniciada correctamente");
-      router.push(redirectTo);
-      router.refresh();
-    },
-    onError: (err) => {
-      toast.error(err.message || "Error al iniciar sesión");
-    },
-  });
+  const [isPending, setIsPending] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -78,7 +62,42 @@ export default function LoginForm({
     validators: {
       onSubmit: LoginSchema,
     },
-    onSubmit: (data) => login.mutate(data.value),
+    onSubmit: async ({ value, formApi }) => {
+      setIsPending(true);
+      try {
+        const { error } = await authClient.signIn.email({
+          email: value.email,
+          password: value.password,
+        });
+
+        if (error) {
+          if (error.code === "INVALID_EMAIL_OR_PASSWORD") {
+            return formApi.setErrorMap({
+              onSubmit: {
+                fields: {
+                  password: {
+                    type: "manual",
+                    message: "Contraseña incorrecta",
+                  }
+                }
+              }
+            })
+          }
+
+          toast.error(error.message || "Error al iniciar sesión");
+
+        }
+
+        toast.success("Sesión iniciada correctamente");
+        router.push(redirectTo);
+        router.refresh();
+      } catch (err) {
+        console.error(err);
+        toast.error("Ocurrió un error inesperado");
+      } finally {
+        setIsPending(false);
+      }
+    },
   });
 
   return (
@@ -156,9 +175,9 @@ export default function LoginForm({
           <Button
             type="submit"
             className={cn("w-full h-10 mt-6", submitButtonClassName)}
-            disabled={login.isPending}
+            disabled={isPending}
           >
-            {login.isPending ? 'Cargando...' : submitButtonText}
+            {isPending ? 'Cargando...' : submitButtonText}
           </Button>
         </form>
 

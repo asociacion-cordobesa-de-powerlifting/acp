@@ -8,6 +8,7 @@ export {
   LuMapPin as MapPinIcon,
   LuClock as ClockIcon,
   LuX as XIcon,
+  LuPanelLeft as PanelLeftIcon,
 } from "react-icons/lu";
 
 export {
