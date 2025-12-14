@@ -187,24 +187,24 @@ export function TeamsDataTable() {
 
     // Define columns
     const columns: ColumnDef<Team>[] = [
-        {
-            id: "avatar",
-            header: "",
-            cell: ({ row }) => {
-                const team = row.original
-                const name = team.name || 'Equipo'
-                const image = team.image
+        // {
+        //     id: "avatar",
+        //     header: "",
+        //     cell: ({ row }) => {
+        //         const team = row.original
+        //         const name = team.name || 'Equipo'
+        //         const image = team.image
 
-                return (
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src={image || undefined} alt={name} />
-                        <AvatarFallback>
-                            {name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
-                )
-            },
-        },
+        //         return (
+        //             <Avatar className="h-8 w-8">
+        //                 <AvatarImage src={image || undefined} alt={name} />
+        //                 <AvatarFallback>
+        //                     {name.substring(0, 2).toUpperCase()}
+        //                 </AvatarFallback>
+        //             </Avatar>
+        //         )
+        //     },
+        // },
         {
             accessorKey: 'name',
             header: ({ column }) => {

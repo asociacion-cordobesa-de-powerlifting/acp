@@ -71,6 +71,8 @@ export default function LoginForm({
         });
 
         if (error) {
+          console.log(error)
+
           if (error.code === "INVALID_EMAIL_OR_PASSWORD") {
             return formApi.setErrorMap({
               onSubmit: {
@@ -84,8 +86,13 @@ export default function LoginForm({
             })
           }
 
-          toast.error(error.message || "Error al iniciar sesión");
+          if (error.code === "BANNED_USER") {
+            return toast.error("Tu cuenta ha sido bloqueada. Ponte en contacto con el administrador", {
+              position: "top-center"
+            });
+          }
 
+          return toast.error(error.message || "Error al iniciar sesión");
         }
 
         toast.success("Sesión iniciada correctamente");
