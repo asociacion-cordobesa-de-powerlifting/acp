@@ -11,21 +11,21 @@
   --primary: oklch(0.7237 0.1052 246.29);
   --primary-foreground: oklch(0.985 0 0);
 
-  /* Secundario suave (KEPT) */
-  --secondary: oklch(0.95 0.05 260);
-  --secondary-foreground: oklch(0.2 0 0);
+  /* Secundario suave (Updated to old Accent) */
+  --secondary: oklch(0.4428 0.1578 18.65);
+  --secondary-foreground: oklch(1 0 0);
 
-  /* Terciario (KEPT) */
-  --tertiary: oklch(0.78 0.1727 84.58);
+  /* Terciario (Updated to old Secondary) */
+  --tertiary: oklch(0.95 0.05 260);
   --tertiary-foreground: oklch(0.2 0 0);
 
   /* Muted (Updated) */
   --muted: oklch(0.9551 0 0);
   --muted-foreground: oklch(0.4091 0 0);
 
-  /* Rojo acento ACP (KEPT) */
-  --accent: oklch(0.4428 0.1578 18.65);
-  --accent-foreground: oklch(1 0 0);
+  /* Rojo acento ACP (Updated to old Tertiary) */
+  --accent: oklch(0.78 0.1727 84.58);
+  --accent-foreground: oklch(0.2 0 0);
 
   /* Acento secundario (KEPT) */
   --accent-secondary: oklch(0.95 0.05 18.65);
@@ -93,20 +93,20 @@
     --primary: oklch(0.65 0.15 260);
     --primary-foreground: oklch(0.15 0 0);
 
-    /* Secondary KEPT */
-    --secondary: oklch(0.25 0 0);
-    --secondary-foreground: oklch(0.95 0 0);
+    /* Secondary (Updated to old Accent) */
+    --secondary: oklch(0.7 0.2 35);
+    --secondary-foreground: oklch(0.15 0 0);
 
-    /* Tertiary KEPT */
-    --tertiary: oklch(0.88 0.1727 84.58);
-    --tertiary-foreground: oklch(0.15 0 0);
+    /* Tertiary (Updated to old Secondary) */
+    --tertiary: oklch(0.25 0 0);
+    --tertiary-foreground: oklch(0.95 0 0);
 
     /* Muted Updated */
     --muted: oklch(0.3485 0 0);
     --muted-foreground: oklch(0.7572 0 0);
 
-    /* Accent KEPT */
-    --accent: oklch(0.7 0.2 35);
+    /* Accent (Updated to old Tertiary) */
+    --accent: oklch(0.88 0.1727 84.58);
     --accent-foreground: oklch(0.15 0 0);
 
     /* Accent Secondary KEPT */

@@ -27,7 +27,7 @@ const upcomingTournaments = [
         startDate: '20 de Marzo',
         endDate: '21 de Marzo',
         status: 'Próximamente',
-        statusColor: 'bg-secondary',
+        statusColor: 'bg-tertiary',
     },
     {
         id: 3,

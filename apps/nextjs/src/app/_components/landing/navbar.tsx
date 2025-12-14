@@ -51,7 +51,7 @@ export default function Navbar() {
               variant="outline"
               size="sm"
               className="hidden sm:inline-flex"
-              onClick={() => (window.location.href = '/admin/login')}
+              onClick={() => (window.location.href = '/team/login')}
             >
               Iniciar sesión
             </Button>

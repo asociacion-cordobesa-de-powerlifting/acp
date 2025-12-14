@@ -46,8 +46,8 @@ const items: NavItem[] = [
         icon: Trophy,
     },
     {
-        title: "Usuarios",
-        url: "/admin/dashboard/users",
+        title: "Equipos",
+        url: "/admin/dashboard/teams",
         icon: Users,
     },
 ]

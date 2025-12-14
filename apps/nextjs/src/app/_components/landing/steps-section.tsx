@@ -52,13 +52,13 @@ export default function StepsSection() {
                         const Icon = step.icon;
                         return (
                             <div key={idx} className="relative">
-                                <Card className="border-accent/20 h-full">
+                                <Card className="border-secondary/20 h-full">
                                     <CardHeader>
                                         <div className="flex items-start justify-between mb-4">
-                                            <div className="p-3 bg-accent/10 rounded-lg">
-                                                <Icon className="h-6 w-6 text-accent" />
+                                            <div className="p-3 bg-secondary/10 rounded-lg">
+                                                <Icon className="h-6 w-6 text-secondary" />
                                             </div>
-                                            <div className="text-3xl font-bold text-accent opacity-20">
+                                            <div className="text-3xl font-bold text-secondary opacity-20">
                                                 {step.number}
                                             </div>
                                         </div>

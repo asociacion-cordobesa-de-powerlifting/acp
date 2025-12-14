@@ -42,7 +42,7 @@ export default function LandingPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/admin/login" className={buttonVariants({ size: "lg", variant: "outline" })}>
+                <Link href="/admin/login" className={buttonVariants({ size: "lg", variant: "outline", className: "hover:bg-secondary hover:text-secondary-foreground" })}>
                   Entrar como administrador
                 </Link>
                 <Link href="/team/login" className={buttonVariants({ size: "lg", variant: "outline", className: "hover:bg-primary" })}>

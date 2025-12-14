@@ -9,7 +9,7 @@ export const authRouter = {
   test: publicProcedure.query(({ ctx }) => {
     return 'PUBLIC'
   }),
-  getSecretMessage: protectedProcedure.query(() => {
+  getSecretMessage: protectedProcedure.query(({ ctx }) => {
     return "you can see this secret message!";
   }),
 } satisfies TRPCRouterRecord;

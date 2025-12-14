@@ -6,7 +6,7 @@ import LoginForm from '~/app/_components/auth/login-form';
 
 export default function TeamLoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-secondary p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-tertiary p-4">
       <div className="w-full max-w-sm">
         {/* Logo Section */}
         <div className="text-center mb-8">

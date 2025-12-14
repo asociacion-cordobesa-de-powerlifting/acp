@@ -187,7 +187,7 @@ export default function LoginForm({
               {footerLink.text}{' '}
               <a
                 href={footerLink.href}
-                className="text-tertiary hover:text-tertiary/80 font-medium transition"
+                className="text-accent hover:text-accent/80 font-medium transition"
               >
                 {footerLink.linkText}
               </a>
