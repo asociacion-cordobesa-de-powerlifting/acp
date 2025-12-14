@@ -46,6 +46,8 @@ import {
     AlertDialogTitle,
 } from "@acme/ui/alert-dialog"
 import { EditTeamDialog } from "./edit-team-dialog"
+import { DataTablePagination } from "~/app/_components/table/pagination"
+import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 
 // Define Team type (based on user schema)
 type Team = {
@@ -238,6 +240,11 @@ export function TeamsDataTable() {
             header: 'Estado',
             cell: ({ row }) => {
                 return row.original.banned ? <Badge variant="destructive">Baneado</Badge> : <Badge variant="outline">Activo</Badge>
+            },
+            filterFn: (row, id, value) => {
+                const rowValue = row.getValue(id)
+                const status = rowValue ? "true" : "false"
+                return value.includes(status)
             }
         },
         {
@@ -279,6 +286,15 @@ export function TeamsDataTable() {
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                     className="max-w-sm"
+                />
+
+                <DataTableFacetedFilter
+                    column={table.getColumn("banned")}
+                    title="Estado"
+                    options={[
+                        { label: "Activo", value: "false" },
+                        { label: "Baneado", value: "true" },
+                    ]}
                 />
             </div>
 
@@ -333,33 +349,7 @@ export function TeamsDataTable() {
                 </Table>
             </div>
 
-            <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                    Página {table.getState().pagination.pageIndex + 1} de{" "}
-                    {table.getPageCount()}
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="text-sm mx-2">
-                        {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            <DataTablePagination table={table} />
         </div>
     )
 }

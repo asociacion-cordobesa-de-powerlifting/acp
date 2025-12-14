@@ -1,0 +1,41 @@
+{
+    "name": "@acme/shared",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "clean": "git clean -xdf .cache .turbo dist node_modules",
+        "dev": "tsc --watch",
+        "format": "prettier --check . --ignore-path ../../.gitignore",
+        "lint": "eslint",
+        "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./src/index.ts"
+        },
+        "./dayjs": "./src/lib/dayjs.ts",
+        "./constants": "./src/constants.ts",
+        "./validators": "./src/validators.ts"
+    },
+    "license": "MIT",
+    "devDependencies": {
+        "@acme/eslint-config": "workspace:*",
+        "@acme/prettier-config": "workspace:*",
+        "@acme/tsconfig": "workspace:*",
+        "eslint": "catalog:",
+        "prettier": "catalog:",
+        "typescript": "catalog:"
+    },
+    "prettier": "@acme/prettier-config",
+    "dependencies": {
+        "@acme/db": "workspace:*",
+        "dayjs": "^1.11.13",
+        "drizzle-zod": "^0.8.3",
+        "lucide-react": "^0.553.0",
+        "react-icons": "^5.5.0",
+        "zod": "catalog:"
+    }
+}

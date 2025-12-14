@@ -26,7 +26,7 @@ import {
 } from "@acme/ui/field"
 import { Input } from "@acme/ui/input"
 import { toast } from "@acme/ui/toast"
-import { authClient } from "~/auth/client"
+
 import { useTRPC } from "~/trpc/react"
 
 const formSchema = z.object({
@@ -47,31 +47,20 @@ export function CreateTeamDialog() {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
-    const createTeam = useMutation({
-        mutationFn: async (values: z.infer<typeof formSchema>) => {
-            const { data, error } = await authClient.admin.createUser({
-                name: values.name,
-                email: values.email,
-                password: values.password,
-                role: "user",
-                data: {
-                    username: values.name,
-                }
-            })
-            if (error) throw new Error(error.message || "Error al crear el equipo")
-            return data
-        },
-        onSuccess: async () => {
-            toast.success("Equipo creado exitosamente")
-            setOpen(false)
-            form.reset()
-            router.refresh()
-            await queryClient.invalidateQueries(trpc.teams.list.pathFilter())
-        },
-        onError: (err) => {
-            toast.error(err.message)
-        },
-    })
+    const createTeam = useMutation(
+        trpc.teams.create.mutationOptions({
+            onSuccess: async () => {
+                toast.success("Equipo creado exitosamente")
+                setOpen(false)
+                form.reset()
+                router.refresh()
+                await queryClient.invalidateQueries(trpc.teams.list.pathFilter())
+            },
+            onError: (err) => {
+                toast.error(err.message)
+            },
+        })
+    )
 
     const form = useForm({
         defaultValues: {
@@ -125,7 +114,7 @@ export function CreateTeamDialog() {
                                             value={field.state.value}
                                             onBlur={field.handleBlur}
                                             onChange={(e) => field.handleChange(e.target.value)}
-                                            placeholder="Ej: Power Club"
+                                            placeholder="Ej: Clover Team"
                                             aria-invalid={isInvalid}
                                         />
                                         {isInvalid && <FieldError errors={field.state.meta.errors} />}

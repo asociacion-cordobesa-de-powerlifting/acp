@@ -46,38 +46,24 @@ export const registrationStatusEnum = pgEnum("registration_status", [
   "rejected",
 ]);
 
-export type Role = "admin" | "team";
-
 
 /* ========== ACP SCHEMA ========== */
 
-// Roles de usuario (admin / equipo)
-export const userRoles = pgTable("user_roles", (t) => ({
-  userId: t
-    .text()
-    .primaryKey()
-    .references(() => user.id),
-  role: t.text().notNull(), // "admin" | "team" a nivel TS
-  createdAt: t.timestamp().defaultNow().notNull(),
-  deletedAt: t.timestamp(), // borrado lógico si querés deshabilitar rol
-}));
-
 // Equipos
-export const teams = pgTable("teams", (t) => ({
+export const teamData = pgTable("team_data", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
-  name: t.text().notNull(), // nombre equipo
   slug: t.text().notNull().unique(),
   userId: t
     .text()
     .notNull()
-    .references(() => user.id),
+    .references(() => user.id, { onDelete: "cascade" }),
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdateFn(() => sql`now()`),
   deletedAt: t.timestamp(), // borrado lógico
 }));
 
 // Torneos
-export const tournaments = pgTable("tournaments", (t) => ({
+export const tournament = pgTable("tournament", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
   name: t.text().notNull(),
   venue: t.text().notNull(),
@@ -92,12 +78,12 @@ export const tournaments = pgTable("tournaments", (t) => ({
 }));
 
 // Atletas (no son usuarios)
-export const athletes = pgTable("athletes", (t) => ({
+export const athlete = pgTable("athlete", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
   teamId: t
     .uuid()
     .notNull()
-    .references(() => teams.id),
+    .references(() => teamData.id),
   fullName: t.text().notNull(),
   dni: t.text().notNull(),
   birthYear: t.integer(),
@@ -115,17 +101,17 @@ export const registrations = pgTable("registrations", (t) => ({
   tournamentId: t
     .uuid()
     .notNull()
-    .references(() => tournaments.id),
+    .references(() => tournament.id),
 
   teamId: t
     .uuid()
     .notNull()
-    .references(() => teams.id),
+    .references(() => teamData.id),
 
   athleteId: t
     .uuid()
     .notNull()
-    .references(() => athletes.id),
+    .references(() => athlete.id),
 
   weightClass: weightClassEnum("weight_class").notNull(),
   division: divisionEnum("division").notNull(),
