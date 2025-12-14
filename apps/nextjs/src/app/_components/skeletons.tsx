@@ -231,3 +231,68 @@ export function LoadingPage() {
     </div>
   )
 }
+
+export function DataTableSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* Search Bar */}
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-full max-w-sm rounded-md" />
+      </div>
+
+      {/* Table */}
+      <div className="rounded-md border bg-card">
+        <div className="border-b bg-muted/40 p-4">
+          <div className="grid grid-cols-6 gap-4 font-medium text-muted-foreground">
+            <div className="w-8"></div>
+            <div>Nombre</div>
+            <div>Email</div>
+            <div>Estado</div>
+            <div>Fecha Registro</div>
+            <div className="text-right">Acciones</div>
+          </div>
+        </div>
+        <div className="divide-y">
+          {Array(5)
+            .fill(null)
+            .map((_, index) => (
+              <div key={index} className="flex items-center p-4">
+                {/* Avatar */}
+                <div className="mr-4 w-12">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                </div>
+
+                {/* Name */}
+                <div className="flex-1 pr-4">
+                  <Skeleton className="h-4 w-32" />
+                </div>
+
+                {/* Email */}
+                <div className="flex-1 pr-4">
+                  <Skeleton className="h-4 w-40" />
+                </div>
+
+                {/* Status */}
+                <div className="w-24 pr-4">
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+
+                {/* Date */}
+                <div className="w-32 pr-4">
+                  <Skeleton className="h-4 w-24" />
+                </div>
+
+                {/* Actions */}
+                <div className="w-12 flex justify-end">
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <PaginationSkeleton />
+    </div>
+  )
+}
