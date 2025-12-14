@@ -7,10 +7,12 @@ export const teamsRouter = {
     list: protectedProcedure
         .query(async ({ ctx }) => {
 
-            const users = await ctx.authApi.listUsers({
-                headers: ctx.headers,
-                query: {},
-            })
+            // const users = await ctx.authApi.listUsers({
+            //     headers: ctx.headers,
+            //     query: {},
+            // })
+
+            // console.log('better-auth users api plugin', users)
 
             return ctx.db.query.user.findMany({
                 where: or(ne(user.role, "admin"), eq(user.role, 'user')),

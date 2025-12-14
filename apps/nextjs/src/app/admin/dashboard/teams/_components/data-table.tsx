@@ -28,13 +28,24 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
-import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, Ban } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, Ban, Pencil } from "lucide-react"
 import { toast } from "@acme/ui/toast"
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Avatar, AvatarFallback, AvatarImage } from "@acme/ui/avatar"
 import { Badge } from "@acme/ui/badge"
 import { authClient } from "~/auth/client"
 import { useTRPC } from "~/trpc/react"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@acme/ui/alert-dialog"
+import { EditTeamDialog } from "./edit-team-dialog"
 
 // Define Team type (based on user schema)
 type Team = {
@@ -49,31 +60,130 @@ type Team = {
     banned?: boolean | null;
 }
 
+function TeamActions({ team }: { team: Team }) {
+    const [isBanDialogOpen, setIsBanDialogOpen] = useState(false)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const handleBanUser = async () => {
+        const { error } = await authClient.admin.banUser({ userId: team.id });
+        if (error) {
+            toast.error(error.message);
+        } else {
+            toast.success(team.banned ? "Equipo desbaneado correctamente" : "Equipo baneado correctamente");
+            void queryClient.invalidateQueries(trpc.teams.list.pathFilter());
+        }
+    };
+
+    const handleDeleteUser = async () => {
+        const { error } = await authClient.admin.removeUser({ userId: team.id });
+        if (error) {
+            toast.error(error.message);
+        } else {
+            toast.success("Equipo eliminado correctamente");
+            void queryClient.invalidateQueries(trpc.teams.list.pathFilter());
+        }
+    };
+
+    return (
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menú</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                        onClick={() => setIsEditDialogOpen(true)}
+                    >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => setIsBanDialogOpen(true)}
+                        className="text-amber-600 focus:text-amber-600"
+                    >
+                        <Ban className="mr-2 h-4 w-4" />
+                        {team.banned ? 'Desbanear' : 'Banear (Bloquear acceso)'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        className="text-red-600 focus:text-red-600"
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Eliminar equipo
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Edit Dialog */}
+            <EditTeamDialog
+                team={team}
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+            />
+
+            {/* Ban/Unban Dialog */}
+            <AlertDialog open={isBanDialogOpen} onOpenChange={setIsBanDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿{team.banned ? 'Desbanear' : 'Banear'} a este equipo?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {team.banned
+                                ? "El equipo recuperará el acceso a la plataforma."
+                                : "El equipo perderá el acceso a la plataforma hasta que sea desbaneado."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => {
+                            void handleBanUser();
+                            setIsBanDialogOpen(false);
+                        }}>
+                            Confirmar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Dialog */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro de eliminar este equipo?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta del equipo "{team.name}" y todos sus datos asociados.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                void handleDeleteUser();
+                                setIsDeleteDialogOpen(false);
+                            }}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    )
+}
+
 export function TeamsDataTable() {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [globalFilter, setGlobalFilter] = useState("")
     const trpc = useTRPC();
-    const queryClient = useQueryClient();
 
     const { data: teams = [], isLoading } = useSuspenseQuery(trpc.teams.list.queryOptions());
-
-    const banUser = useMutation({ // TODO: Implement ban via tRPC or keep using authClient if comfortable
-        // Actually, let's keep using authClient for actions if simpler, or implement tRPC mutation.
-        // authClient is fine for client-side actions if the user ID is known.
-    } as any);
-
-    // Using authClient for ban/delete actions directly for now, wrapping in a function
-    const handleBanUser = async (userId: string) => {
-        const { error } = await authClient.admin.banUser({ userId });
-        if (error) {
-            toast.error(error.message);
-        } else {
-            toast.success("Equipo baneado correctamente");
-            void queryClient.invalidateQueries(trpc.teams.list.pathFilter());
-        }
-    };
-
 
     // Define columns
     const columns: ColumnDef<Team>[] = [
@@ -140,34 +250,7 @@ export function TeamsDataTable() {
         {
             id: 'actions',
             header: 'Acciones',
-            cell: ({ row }) => {
-                const team = row.original;
-                const isBanned = team.banned;
-
-                return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menú</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    if (confirm('¿Estás seguro de banear a este equipo?')) {
-                                        void handleBanUser(team.id);
-                                    }
-                                }}
-                                className="text-red-600 focus:text-red-600"
-                            >
-                                <Ban className="mr-2 h-4 w-4" />
-                                {isBanned ? 'Desbanear' : 'Banear (Bloquear acceso)'}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )
-            }
+            cell: ({ row }) => <TeamActions team={row.original} />
         }
     ]
 

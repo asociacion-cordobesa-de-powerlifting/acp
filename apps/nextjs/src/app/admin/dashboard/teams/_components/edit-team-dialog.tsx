@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Pencil } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@acme/ui/button"
@@ -29,43 +29,72 @@ import { toast } from "@acme/ui/toast"
 import { authClient } from "~/auth/client"
 import { useTRPC } from "~/trpc/react"
 
+import { Switch } from "@acme/ui/switch"
+import { Label } from "@acme/ui/label"
+
 const formSchema = z.object({
     name: z.string().min(2, {
         message: "El nombre debe tener al menos 2 caracteres.",
     }),
-    email: z.string().email({
+    email: z.email({
         message: "Email inválido.",
     }),
-    password: z.string().min(6, {
-        message: "La contraseña debe tener al menos 6 caracteres.",
-    }),
+    newPassword: z.string().optional(),
 })
 
-export function CreateTeamDialog() {
-    const [open, setOpen] = useState(false)
+interface EditTeamDialogProps {
+    team: {
+        id: string
+        name: string
+        email: string
+    }
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}
+
+export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps) {
+    const [changePassword, setChangePassword] = useState(false)
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
-    const createTeam = useMutation({
+    const updateTeam = useMutation({
         mutationFn: async (values: z.infer<typeof formSchema>) => {
-            const { data, error } = await authClient.admin.createUser({
-                name: values.name,
-                email: values.email,
-                password: values.password,
-                role: "user",
+            const promises = [];
+
+            // Update basic info
+            promises.push(authClient.admin.updateUser({
+                userId: team.id,
                 data: {
-                    username: values.name,
-                }
-            })
-            if (error) throw new Error(error.message || "Error al crear el equipo")
-            return data
+                    name: values.name,
+                    email: values.email,
+                },
+            }));
+
+            // Update password if enabled
+            if (changePassword && values.newPassword) {
+                promises.push(authClient.admin.setUserPassword({
+                    userId: team.id,
+                    newPassword: values.newPassword,
+                }));
+            }
+
+            const results = await Promise.all(promises);
+            const errors = results.filter(r => r.error);
+
+            if (errors.length > 0) {
+                // Join error messages if multiple
+                throw new Error(errors.map(e => e.error?.message).join(", ") || "Error al actualizar el equipo");
+            }
+
+            return results[0]?.data; // Return first result usually fine
         },
         onSuccess: async () => {
-            toast.success("Equipo creado exitosamente")
-            setOpen(false)
-            form.reset()
+            toast.success("Equipo actualizado exitosamente")
+            onOpenChange(false)
             router.refresh()
+            setChangePassword(false) // Reset state
+            form.reset() // Reset form to clear password
             await queryClient.invalidateQueries(trpc.teams.list.pathFilter())
         },
         onError: (err) => {
@@ -73,31 +102,33 @@ export function CreateTeamDialog() {
         },
     })
 
+    const defaultValues: z.input<typeof formSchema> = {
+        name: team.name,
+        email: team.email,
+        newPassword: "",
+    }
+
     const form = useForm({
-        defaultValues: {
-            name: "",
-            email: "",
-            password: "",
-        },
+        defaultValues,
         validators: {
             onChange: formSchema,
         },
-        onSubmit: ({ value }) => createTeam.mutate(value),
+        onSubmit: ({ value }) => updateTeam.mutate(value),
     })
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crear Equipo
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={(val) => {
+            onOpenChange(val);
+            if (!val) {
+                setChangePassword(false);
+                form.reset();
+            }
+        }}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Crear Nuevo Equipo</DialogTitle>
+                    <DialogTitle>Editar Equipo</DialogTitle>
                     <DialogDescription>
-                        Ingrese los datos para registrar un nuevo equipo.
+                        Modifique los datos del equipo.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -156,37 +187,54 @@ export function CreateTeamDialog() {
                                 )
                             }}
                         />
-                        <form.Field
-                            name="password"
-                            children={(field) => {
-                                const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                return (
-                                    <Field data-invalid={isInvalid}>
-                                        <FieldContent>
-                                            <FieldLabel htmlFor={field.name}>Contraseña</FieldLabel>
-                                        </FieldContent>
-                                        <Input
-                                            id={field.name}
-                                            name={field.name}
-                                            type="password"
-                                            value={field.state.value}
-                                            onBlur={field.handleBlur}
-                                            onChange={(e) => field.handleChange(e.target.value)}
-                                            placeholder="******"
-                                            aria-invalid={isInvalid}
-                                        />
-                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                    </Field>
-                                )
-                            }}
-                        />
+
+                        <div className="flex items-center space-x-2 py-2">
+                            <Switch
+                                id="change-password"
+                                checked={changePassword}
+                                onCheckedChange={setChangePassword}
+                            />
+                            <Label htmlFor="change-password">Cambiar contraseña</Label>
+                        </div>
+
+                        {changePassword && (
+                            <form.Field
+                                name="newPassword"
+                                validators={{
+                                    onChange: z.string().min(6, "La contraseña debe tener al menos 6 caracteres")
+                                }}
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid} className="animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Nueva Contraseña</FieldLabel>
+                                            </FieldContent>
+                                            <Input
+                                                id={field.name}
+                                                name={field.name}
+                                                type="password"
+                                                value={field.state.value}
+                                                onBlur={field.handleBlur}
+                                                onChange={(e) => field.handleChange(e.target.value)}
+                                                placeholder="******"
+                                                aria-invalid={isInvalid}
+                                                autoComplete="new-password"
+                                            />
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                        )}
+
                     </FieldGroup>
                     <DialogFooter>
-                        <Button type="submit" disabled={createTeam.isPending}>
-                            {createTeam.isPending && (
+                        <Button type="submit" disabled={updateTeam.isPending}>
+                            {updateTeam.isPending && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
-                            Crear
+                            Guardar Cambios
                         </Button>
                     </DialogFooter>
                 </form>
