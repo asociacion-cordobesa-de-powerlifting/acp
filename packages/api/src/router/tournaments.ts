@@ -1,27 +1,85 @@
 import { tournament, user } from "@acme/db/schema";
 import { adminProcedure, protectedProcedure } from "../trpc";
-import { or, ne, eq, desc } from "@acme/db";
-import { TRPCRouterRecord } from "@trpc/server";
+import { or, ne, eq, desc, and, sql } from "@acme/db";
+import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { tournamentValidator } from "@acme/shared/validators";
+import { z } from "zod";
+import { cleanAndLowercase } from '@acme/shared'
+import { dayjs } from '@acme/shared/libs'
+
 
 export const tournamentsRouter = {
     list: protectedProcedure
         .query(async ({ ctx }) => {
-            return ctx.db.query.user.findMany({
-                where: or(ne(user.role, "admin"), eq(user.role, 'user')),
-                orderBy: [desc(user.createdAt)],
+            return ctx.db.query.tournament.findMany({
+                orderBy: [desc(tournament.createdAt)],
             });
         }),
 
     create: adminProcedure
         .input(tournamentValidator)
         .mutation(async ({ ctx, input }) => {
+            const slug = cleanAndLowercase(input.name);
+            const existing = await ctx.db.query.tournament.findFirst({
+                where: eq(tournament.slug, slug)
+            });
+
+            if (existing) {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: 'Ya hay otro torneo con el mismo nombre'
+                });
+            }
 
             const newTournament = await ctx.db.insert(tournament).values({
-                ...input
+                ...input,
+                slug,
             });
 
             return newTournament;
+        }),
+
+    update: adminProcedure
+        .input(tournamentValidator.and(z.object({ id: z.string().uuid() })))
+        .mutation(async ({ ctx, input }) => {
+            const { id, ...data } = input;
+            const slug = cleanAndLowercase(data.name);
+
+            const existing = await ctx.db.query.tournament.findFirst({
+                where: and(
+                    eq(tournament.slug, slug),
+                    ne(tournament.id, id)
+                )
+            });
+
+            if (existing) {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: 'Ya hay otro torneo con el mismo nombre'
+                });
+            }
+
+            await ctx.db.execute(sql`
+                UPDATE ${tournament}
+                SET 
+                    name = ${data.name},
+                    slug = ${slug},
+                    venue = ${data.venue},
+                    location = ${data.location},
+                    start_date = ${data.startDate},
+                    end_date = ${data.endDate},
+                    status = ${data.status},
+                    max_athletes = ${data.maxAthletes},
+                    updated_at = NOW()
+                WHERE ${tournament.id} = ${id}
+            `);
+
+        }),
+
+    delete: adminProcedure
+        .input(z.object({ id: z.string().uuid() }))
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db.delete(tournament).where(eq(tournament.id, input.id));
         }),
 
 } satisfies TRPCRouterRecord;

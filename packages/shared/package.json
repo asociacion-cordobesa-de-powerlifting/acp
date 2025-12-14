@@ -16,7 +16,7 @@
             "types": "./dist/index.d.ts",
             "default": "./src/index.ts"
         },
-        "./dayjs": "./src/lib/dayjs.ts",
+        "./libs": "./src/lib/index.ts",
         "./constants": "./src/constants.ts",
         "./validators": "./src/validators.ts"
     },

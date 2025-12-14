@@ -66,10 +66,11 @@ export const teamData = pgTable("team_data", (t) => ({
 export const tournament = pgTable("tournament", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
   name: t.text().notNull(),
+  slug: t.text().notNull().unique(),
   venue: t.text().notNull(),
   location: t.text().notNull(),
-  startDate: t.date().notNull(),
-  endDate: t.date(),
+  startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: t.timestamp('end_date', { withTimezone: true }).notNull(),
   status: tournamentStatusEnum("status").notNull(),
   maxAthletes: t.integer(),
   createdAt: t.timestamp().defaultNow().notNull(),
@@ -129,3 +130,5 @@ export const registrations = pgTable("registrations", (t) => ({
 
 
 export * from "./auth-schema";
+
+export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number]
