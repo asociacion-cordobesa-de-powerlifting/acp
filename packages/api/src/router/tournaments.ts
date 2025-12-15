@@ -59,20 +59,10 @@ export const tournamentsRouter = {
                 });
             }
 
-            await ctx.db.execute(sql`
-                UPDATE ${tournament}
-                SET 
-                    name = ${data.name},
-                    slug = ${slug},
-                    venue = ${data.venue},
-                    location = ${data.location},
-                    start_date = ${data.startDate},
-                    end_date = ${data.endDate},
-                    status = ${data.status},
-                    max_athletes = ${data.maxAthletes},
-                    updated_at = NOW()
-                WHERE ${tournament.id} = ${id}
-            `);
+            await ctx.db.update(tournament).set({
+                ...data,
+                slug,
+            }).where(eq(tournament.id, id));
 
         }),
 

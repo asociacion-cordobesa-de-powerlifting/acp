@@ -31,7 +31,15 @@ export const weightClassEnum = pgEnum("weight_class", [
   "M_CATHW",
 ]);
 
-export const divisionEnum = pgEnum("division", ["Open", "Teen", "Subjunior"]);
+export const divisionEnum = pgEnum("division", [
+  "subjunior",
+  "junior",
+  "open",
+  "master_1",
+  "master_2",
+  "master_3",
+  "master_4",
+]);
 
 export const tournamentStatusEnum = pgEnum("tournament_status", [
   "draft",
@@ -58,7 +66,7 @@ export const teamData = pgTable("team_data", (t) => ({
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t.timestamp().notNull().$onUpdateFn(() => sql`now()`),
+  updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(), // borrado lógico
 }));
 
@@ -74,7 +82,7 @@ export const tournament = pgTable("tournament", (t) => ({
   status: tournamentStatusEnum("status").notNull(),
   maxAthletes: t.integer(),
   createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t.timestamp().notNull().$onUpdateFn(() => sql`now()`),
+  updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(),
 }));
 
@@ -91,7 +99,7 @@ export const athlete = pgTable("athlete", (t) => ({
   gender: genderEnum("gender").notNull(),
   goodliftRef: t.text(),
   createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t.timestamp().notNull().$onUpdateFn(() => sql`now()`),
+  updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(),
 }));
 
@@ -124,7 +132,7 @@ export const registrations = pgTable("registrations", (t) => ({
   status: registrationStatusEnum("status").notNull(),
 
   createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t.timestamp().notNull().$onUpdateFn(() => sql`now()`),
+  updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(),
 }));
 
@@ -132,3 +140,4 @@ export const registrations = pgTable("registrations", (t) => ({
 export * from "./auth-schema";
 
 export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number]
+export type AthleteDivisionEnum = typeof divisionEnum.enumValues[number]

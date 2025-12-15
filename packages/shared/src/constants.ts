@@ -1,4 +1,4 @@
-import { TournamentStatusEnum } from "@acme/db/schema"
+import { AthleteDivisionEnum, TournamentStatusEnum } from "@acme/db/schema"
 
 type Selection<Enum> = {
     label: string,
@@ -13,4 +13,14 @@ export const TOURNAMENT_STATUS: Selection<TournamentStatusEnum>[] = [
     { label: "Preliminar Abierto", value: "preliminary_open" },
     { label: "Preliminar Cerrado", value: "preliminary_closed" },
     { label: "Finalizado", value: "finished" },
+]
+
+export const ATHLETE_DIVISION: Selection<AthleteDivisionEnum>[] = [
+    { label: "Sub-Junior", value: "subjunior" },
+    { label: "Junior", value: "junior" },
+    { label: "Open", value: "open" },
+    { label: "Master 1", value: "master_1" },
+    { label: "Master 2", value: "master_2" },
+    { label: "Master 3", value: "master_3" },
+    { label: "Master 4", value: "master_4" },
 ]

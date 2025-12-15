@@ -1,7 +1,7 @@
 import React from "react";
 import { Separator } from "@acme/ui/separator";
 
-interface AdminPageLayoutProps {
+interface DashboardPageLayoutProps {
   title: string;
   description?: string;
   children: React.ReactNode;
@@ -12,12 +12,12 @@ interface AdminPageLayoutProps {
   actions?: React.ReactNode;
 }
 
-export function AdminPageLayout({
+export function DashboardPageLayout({
   title,
   description,
   actions,
   children,
-}: AdminPageLayoutProps) {
+}: DashboardPageLayoutProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Cabecera: Ahora usa flexbox para alinear título y acciones */}

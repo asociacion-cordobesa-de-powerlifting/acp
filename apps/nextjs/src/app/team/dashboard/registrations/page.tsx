@@ -1,11 +1,20 @@
+import { DashboardPageLayout } from "~/app/_components/dashboard-page-layout";
+import { TableSkeleton } from "~/app/_components/skeletons";
+import { HydrateClient } from "~/trpc/server";
+import { Suspense } from "react";
+
 export default function RegistrationsPage() {
     return (
-        <div className="container py-10">
-            <h1 className="text-3xl font-bold mb-6">Inscripciones</h1>
-            <div className="p-6 border rounded-lg bg-card text-card-foreground">
-                <p>Aquí podrás gestionar las inscripciones a torneos.</p>
-                <p className="mt-4 text-sm text-muted-foreground">Próximamente...</p>
-            </div>
-        </div>
+        <HydrateClient>
+
+            <DashboardPageLayout
+                title="Inscripciones"
+                description="Gestión de inscripciones"
+            >
+                <Suspense fallback={<TableSkeleton />}>
+                    INSCRIPCIONES
+                </Suspense>
+            </DashboardPageLayout>
+        </HydrateClient>
     );
 }

@@ -113,3 +113,5 @@ export function splitName(fullName: string) {
 export function daysToMilliseconds(days: number) {
     return days * 24 * 60 * 60 * 1000;
 }
+
+export * from "./utils/divisions";
