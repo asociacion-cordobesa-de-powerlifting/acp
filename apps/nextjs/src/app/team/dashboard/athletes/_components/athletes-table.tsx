@@ -28,7 +28,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
-import { ChevronDown, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Pencil, Trash2, UserPlus } from "lucide-react"
 import { useQueryClient, useSuspenseQuery, useMutation } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
@@ -38,6 +38,7 @@ import { DataTablePagination } from "~/app/_components/table/pagination"
 import { ATHLETE_DIVISION } from "@acme/shared/constants"
 import { getAthleteDivision } from "@acme/shared"
 import { EditAthleteDialog } from "./edit-athlete-dialog"
+import { RegisterAthleteToTournamentDialog } from "../../_components/register-athlete-dialog"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -61,6 +62,7 @@ const GENDER_OPTIONS = [
 function AthleteActions({ athlete }: { athlete: Athlete }) {
     const [showEditDialog, setShowEditDialog] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [showRegisterDialog, setShowRegisterDialog] = useState(false)
     const trpc = useTRPC()
     const queryClient = useQueryClient()
 
@@ -83,6 +85,11 @@ function AthleteActions({ athlete }: { athlete: Athlete }) {
                 athlete={athlete}
                 open={showEditDialog}
                 onOpenChange={setShowEditDialog}
+            />
+            <RegisterAthleteToTournamentDialog
+                athleteId={athlete.id}
+                open={showRegisterDialog}
+                onOpenChange={setShowRegisterDialog}
             />
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
@@ -120,6 +127,10 @@ function AthleteActions({ athlete }: { athlete: Athlete }) {
                     <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowRegisterDialog(true)}>
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Inscribir a torneo
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setShowDeleteDialog(true)}

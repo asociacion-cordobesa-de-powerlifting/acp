@@ -36,69 +36,21 @@ import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_STATUS } from "@acme/shared/constants"
-import { EditTournamentDialog } from "./edit-tournament-dialog"
 import { toast } from "@acme/ui/toast"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@acme/ui/alert-dialog"
+import { EyeIcon, UserPlusIcon } from "@acme/ui/icons"
+import { RegisterAthleteToTournamentDialog } from "../../_components/register-athlete-dialog"
 
 // Helper type for Tournament
 type Tournament = RouterOutputs["tournaments"]["list"][number]
 
 function TournamentActions({ tournament }: { tournament: Tournament }) {
+    const [showRegisterDialog, setShowRegisterDialog] = useState(false)
     const trpc = useTRPC();
     const queryClient = useQueryClient();
-    const [openEdit, setOpenEdit] = useState(false)
-    const [openDelete, setOpenDelete] = useState(false)
 
-    const deleteTournament = useMutation(
-        trpc.tournaments.delete.mutationOptions({
-            onSuccess: async () => {
-                toast.success("Torneo eliminado exitosamente")
-                await queryClient.invalidateQueries(trpc.tournaments.list.pathFilter())
-                setOpenDelete(false)
-            },
-            onError: (err) => {
-                toast.error(err.message)
-            },
-        })
-    )
 
     return (
         <>
-            <EditTournamentDialog
-                open={openEdit}
-                onOpenChange={setOpenEdit}
-                tournament={tournament}
-            />
-            <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro de eliminar este torneo?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el torneo "{tournament.name}" y todos sus datos asociados.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => deleteTournament.mutate({ id: tournament.id })}
-                            className="bg-destructive hover:bg-destructive/90"
-                            disabled={deleteTournament.isPending}
-                        >
-                            Eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-8 w-8 p-0">
@@ -107,30 +59,42 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar
+                    <DropdownMenuItem>
+                        <EyeIcon className="mr-2 h-4 w-4" />
+                        Ver inscriptos
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                        onClick={() => setOpenDelete(true)}
-                        className="text-red-600 focus:text-red-600"
-                    >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar
-                    </DropdownMenuItem>
+                    {
+                        tournament.status === 'preliminary_open' && (
+                            <DropdownMenuItem onClick={() => setShowRegisterDialog(true)}>
+                                <UserPlusIcon className="mr-2 h-4 w-4" />
+                                Inscribir atleta
+                            </DropdownMenuItem>
+                        )
+                    }
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <RegisterAthleteToTournamentDialog
+                tournamentId={tournament.id}
+                open={showRegisterDialog}
+                onOpenChange={setShowRegisterDialog}
+            />
         </>
     )
 }
 
 export function TournamentsDataTable() {
     const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([
+        {
+            id: "status",
+            value: ["preliminary_open"],
+        }
+    ])
     const [globalFilter, setGlobalFilter] = useState("")
     const trpc = useTRPC();
 
-    const { data: tournaments = [], isLoading } = useSuspenseQuery(trpc.tournaments.all.queryOptions());
+    const { data: tournaments = [], isLoading } = useSuspenseQuery(trpc.tournaments.list.queryOptions());
 
     const columns: ColumnDef<Tournament>[] = [
         {
@@ -182,6 +146,7 @@ export function TournamentsDataTable() {
             filterFn: (row, id, value) => {
                 return value.includes(row.getValue(id))
             },
+            
         },
         {
             id: 'actions',
@@ -219,7 +184,7 @@ export function TournamentsDataTable() {
                 <DataTableFacetedFilter
                     column={table.getColumn("status")}
                     title="Estado"
-                    options={TOURNAMENT_STATUS}
+                    options={TOURNAMENT_STATUS.filter(Tstatus => Tstatus.value !== "draft")}
                 />
             </div>
             <div className="rounded-md border bg-card">

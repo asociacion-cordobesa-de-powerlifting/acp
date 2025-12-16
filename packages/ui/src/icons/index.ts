@@ -9,6 +9,10 @@ export {
   LuClock as ClockIcon,
   LuX as XIcon,
   LuPanelLeft as PanelLeftIcon,
+  LuGlobe as GlobeIcon,
+  LuHouse as HouseIcon,
+  LuEye as EyeIcon,
+  LuUserPlus as UserPlusIcon
 } from "react-icons/lu";
 
 export {

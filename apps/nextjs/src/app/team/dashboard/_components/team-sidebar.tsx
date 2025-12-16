@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight, ChevronsUpDown, LogOut, ClipboardList, User2, Users } from "lucide-react"
+import { ChevronRight, ChevronsUpDown, LogOut, ClipboardList, User2, Users, HouseIcon, Trophy } from "lucide-react"
 
 import {
     DropdownMenu,
@@ -41,9 +41,19 @@ interface NavItem {
 // Menu items for Team Dashboard
 const items: NavItem[] = [
     {
+        title: "General",
+        url: "/admin/dashboard",
+        icon: HouseIcon,
+    },
+    {
         title: "Atletas",
         url: "/team/dashboard/athletes",
         icon: Users,
+    },
+    {
+        title: "Torneos",
+        url: "/team/dashboard/tournaments",
+        icon: Trophy,
     },
     {
         title: "Inscripciones",

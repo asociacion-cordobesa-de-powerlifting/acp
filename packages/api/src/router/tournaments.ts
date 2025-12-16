@@ -1,6 +1,6 @@
 import { tournament, user } from "@acme/db/schema";
 import { adminProcedure, protectedProcedure } from "../trpc";
-import { or, ne, eq, desc, and, sql } from "@acme/db";
+import { or, ne, eq, desc, and, sql, not } from "@acme/db";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { tournamentValidator } from "@acme/shared/validators";
 import { z } from "zod";
@@ -9,10 +9,19 @@ import { dayjs } from '@acme/shared/libs'
 
 
 export const tournamentsRouter = {
+
+    all: adminProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.query.tournament.findMany({
+                orderBy: [desc(tournament.createdAt)],
+            });
+        }),
+
     list: protectedProcedure
         .query(async ({ ctx }) => {
             return ctx.db.query.tournament.findMany({
                 orderBy: [desc(tournament.createdAt)],
+                where: not(eq(tournament.status, 'draft'))
             });
         }),
 

@@ -28,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@acme/ui/co
 import Image from "next/image"
 import { authClient } from "~/auth/client"
 import { useRouter } from "next/navigation"
+import { HouseIcon } from "@acme/ui/icons"
 
 interface NavItem {
     title: string
@@ -40,6 +41,11 @@ interface NavItem {
 
 // Menu items.
 const items: NavItem[] = [
+    {
+        title: "General",
+        url: "/admin/dashboard",
+        icon: HouseIcon,
+    },
     {
         title: "Torneos",
         url: "/admin/dashboard/tournaments",

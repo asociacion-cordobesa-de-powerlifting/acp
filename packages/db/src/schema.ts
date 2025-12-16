@@ -7,27 +7,24 @@ import { user } from "./auth-schema";
 export const genderEnum = pgEnum("gender", ["M", "F"]);
 
 export const weightClassEnum = pgEnum("weight_class", [
-  "F_CAT44",
-  "F_CAT48",
+  "F_CAT43",
+  "F_CAT47",
   "F_CAT52",
-  "F_CAT56",
-  "F_CAT60",
-  "F_CAT67",
-  "F_CAT75",
-  "F_CAT82",
-  "F_CAT90",
+  "F_CAT57",
+  "F_CAT63",
+  "F_CAT69",
+  "F_CAT76",
+  "F_CAT84",
   "F_CATHW",
-  "M_CAT52",
-  "M_CAT56",
-  "M_CAT60",
-  "M_CAT67",
-  "M_CAT75",
-  "M_CAT82",
-  "M_CAT90",
-  "M_CAT100",
-  "M_CAT110",
-  "M_CAT125",
-  "M_CAT140",
+
+  "M_CAT53",
+  "M_CAT59",
+  "M_CAT66",
+  "M_CAT74",
+  "M_CAT83",
+  "M_CAT93",
+  "M_CAT105",
+  "M_CAT120",
   "M_CATHW",
 ]);
 
@@ -95,7 +92,7 @@ export const athlete = pgTable("athlete", (t) => ({
     .references(() => teamData.id),
   fullName: t.text().notNull(),
   dni: t.text().notNull(),
-  birthYear: t.integer(),
+  birthYear: t.integer().notNull(),
   gender: genderEnum("gender").notNull(),
   goodliftRef: t.text(),
   createdAt: t.timestamp().defaultNow().notNull(),
@@ -140,4 +137,6 @@ export const registrations = pgTable("registrations", (t) => ({
 export * from "./auth-schema";
 
 export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number]
-export type AthleteDivisionEnum = typeof divisionEnum.enumValues[number]
+export type DivisionEnum = typeof divisionEnum.enumValues[number]
+export type WeightClassEnum = typeof weightClassEnum.enumValues[number]
+
