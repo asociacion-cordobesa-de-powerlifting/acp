@@ -36,7 +36,7 @@ import { useTRPC } from "~/trpc/react"
 import { registrationValidator } from "@acme/shared/validators"
 import { weightClassEnum, divisionEnum } from "@acme/db/schema"
 import { getEligibleDivisions, getEligibleWeightClasses } from "@acme/shared"
-import { ATHLETE_DIVISION, WEIGHT_CLASSES } from "@acme/shared/constants"
+import { ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS } from "@acme/shared/constants"
 
 interface RegisterAthleteToTournamentDialogProps {
     athleteId?: string;
@@ -87,9 +87,10 @@ export function RegisterAthleteToTournamentDialog({
             tournamentId: tournamentId ?? "",
             weightClass: undefined as any,
             division: undefined as any,
-            squatOpenerKg: 0,
-            benchOpenerKg: 0,
-            deadliftOpenerKg: 0,
+            event: undefined as any,
+            squatOpenerKg: 0 as number | null,
+            benchOpenerKg: 0 as number | null,
+            deadliftOpenerKg: 0 as number | null,
         },
         validators: {
             onChange: registrationValidator,
@@ -186,17 +187,22 @@ export function RegisterAthleteToTournamentDialog({
                         />
 
                         <form.Subscribe
-                            selector={(state) => state.values.athleteId}
-                            children={(athleteId) => {
+                            selector={(state) => [state.values.athleteId, state.values.division, state.values.tournamentId]}
+                            children={([athleteId, division, tournamentId]) => {
                                 const selectedAthlete = athletes?.find((a: any) => a.id === athleteId);
+
+                                const selectedTournament = tournaments?.find((t: any) => t.id === tournamentId);
+                                const isPreliminary = selectedTournament?.status === "preliminary_open";
 
                                 const availableDivisions = !selectedAthlete?.birthYear
                                     ? divisionEnum.enumValues
-                                    : getEligibleDivisions(selectedAthlete.birthYear);
+                                    : getEligibleDivisions(selectedAthlete.birthYear).filter(d =>
+                                        isPreliminary ? d === "open" : true
+                                    );
 
                                 const availableWeightClasses = !selectedAthlete?.gender
                                     ? weightClassEnum.enumValues
-                                    : getEligibleWeightClasses(selectedAthlete.gender as "M" | "F", selectedAthlete.birthYear);
+                                    : getEligibleWeightClasses(selectedAthlete.gender as "M" | "F", division);
 
                                 return (
                                     <>
@@ -269,77 +275,122 @@ export function RegisterAthleteToTournamentDialog({
                         />
 
                         {/* OPENERS */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <form.Field
-                                name="squatOpenerKg"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Sentadilla (Kg)</FieldLabel>
-                                            </FieldContent>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                type="number"
-                                                value={field.state.value}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                aria-invalid={isInvalid}
+                        {/* EVENT SELECTOR - Added before Openers */}
+                        <form.Subscribe
+                            selector={(state) => [state.values.event]}
+                            children={([event]) => (
+                                <div className="space-y-4">
+                                    <form.Field
+                                        name="event"
+                                        children={(field) => {
+                                            const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                            return (
+                                                <Field data-invalid={isInvalid}>
+                                                    <FieldContent>
+                                                        <FieldLabel htmlFor={field.name}>Evento</FieldLabel>
+                                                    </FieldContent>
+                                                    <Select
+                                                        value={field.state.value}
+                                                        onValueChange={(val) => field.handleChange(val as any)}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Seleccione Evento" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {EVENTS.map(d => (
+                                                                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                </Field>
+                                            )
+                                        }}
+                                    />
+
+                                    <div className="grid grid-cols-3 gap-4">
+                                        {/* SQUAT - Only if Full */}
+                                        {event === 'full' && (
+                                            <form.Field
+                                                name="squatOpenerKg"
+                                                children={(field) => {
+                                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                                    return (
+                                                        <Field data-invalid={isInvalid}>
+                                                            <FieldContent>
+                                                                <FieldLabel htmlFor={field.name}>Sentadilla (Kg)</FieldLabel>
+                                                            </FieldContent>
+                                                            <Input
+                                                                id={field.name}
+                                                                name={field.name}
+                                                                type="number"
+                                                                value={field.state.value ?? ""}
+                                                                onBlur={field.handleBlur}
+                                                                onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
+                                                                aria-invalid={isInvalid}
+                                                            />
+                                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                        </Field>
+                                                    )
+                                                }}
                                             />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                            <form.Field
-                                name="benchOpenerKg"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Banco (Kg)</FieldLabel>
-                                            </FieldContent>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                type="number"
-                                                value={field.state.value}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                aria-invalid={isInvalid}
+                                        )}
+
+                                        {/* BENCH - Always visible */}
+                                        <form.Field
+                                            name="benchOpenerKg"
+                                            children={(field) => {
+                                                const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                                return (
+                                                    <Field data-invalid={isInvalid}>
+                                                        <FieldContent>
+                                                            <FieldLabel htmlFor={field.name}>Banco (Kg)</FieldLabel>
+                                                        </FieldContent>
+                                                        <Input
+                                                            id={field.name}
+                                                            name={field.name}
+                                                            type="number"
+                                                            value={field.state.value ?? ""}
+                                                            onBlur={field.handleBlur}
+                                                            onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
+                                                            aria-invalid={isInvalid}
+                                                        />
+                                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                    </Field>
+                                                )
+                                            }}
+                                        />
+
+                                        {/* DEADLIFT - Only if Full */}
+                                        {event === 'full' && (
+                                            <form.Field
+                                                name="deadliftOpenerKg"
+                                                children={(field) => {
+                                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                                    return (
+                                                        <Field data-invalid={isInvalid}>
+                                                            <FieldContent>
+                                                                <FieldLabel htmlFor={field.name}>Despegue (Kg)</FieldLabel>
+                                                            </FieldContent>
+                                                            <Input
+                                                                id={field.name}
+                                                                name={field.name}
+                                                                type="number"
+                                                                value={field.state.value ?? ""}
+                                                                onBlur={field.handleBlur}
+                                                                onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
+                                                                aria-invalid={isInvalid}
+                                                            />
+                                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                        </Field>
+                                                    )
+                                                }}
                                             />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                            <form.Field
-                                name="deadliftOpenerKg"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Despegue (Kg)</FieldLabel>
-                                            </FieldContent>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                type="number"
-                                                value={field.state.value}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                aria-invalid={isInvalid}
-                                            />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                        </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        />
 
 
                     </FieldGroup>

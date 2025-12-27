@@ -42,7 +42,7 @@ export function getEligibleDivisions(birthYear: number): string[] {
     return divisions;
 }
 
-export function getEligibleWeightClasses(gender: "M" | "F", birthYear: number | null): string[] {
+export function getEligibleWeightClasses(gender: "M" | "F", division?: string): string[] {
     const weights = gender === "M"
         ? [
             "M_CAT53", "M_CAT59", "M_CAT66", "M_CAT74", "M_CAT83",
@@ -53,13 +53,12 @@ export function getEligibleWeightClasses(gender: "M" | "F", birthYear: number | 
             "F_CAT76", "F_CAT84", "F_CATHW"
         ];
 
-    // Filter restricted classes if age > 23 (Not SubJunior or Junior)
-    if (birthYear) {
-        const currentYear = new Date().getFullYear();
-        const age = currentYear - birthYear;
-        // Subjunior (14-18) and Junior (19-23). Restricted classes are only for these ages.
-        // If age > 23, remove restricted classes.
-        if (age > 23) {
+    // Filter restricted classes logic
+    // M_CAT53 and F_CAT43 are ONLY available for SubJunior and Junior divisions.
+    // If division is NOT subjunior or junior, remove them.
+    if (division) {
+        const isSubJuniorOrJunior = division === "subjunior" || division === "junior";
+        if (!isSubJuniorOrJunior) {
             return weights.filter(w => w !== "M_CAT53" && w !== "F_CAT43");
         }
     }

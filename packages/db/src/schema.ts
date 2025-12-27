@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { pgEnum, pgTable } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -36,6 +36,11 @@ export const divisionEnum = pgEnum("division", [
   "master_2",
   "master_3",
   "master_4",
+]);
+
+export const eventEnum = pgEnum("event", [
+  "full",
+  "bench"
 ]);
 
 export const tournamentStatusEnum = pgEnum("tournament_status", [
@@ -121,10 +126,11 @@ export const registrations = pgTable("registrations", (t) => ({
 
   weightClass: weightClassEnum("weight_class").notNull(),
   division: divisionEnum("division").notNull(),
+  event: eventEnum("event").notNull(),
 
-  squatOpenerKg: t.real().notNull(),
-  benchOpenerKg: t.real().notNull(),
-  deadliftOpenerKg: t.real().notNull(),
+  squatOpenerKg: t.real(),
+  benchOpenerKg: t.real(),
+  deadliftOpenerKg: t.real(),
 
   status: registrationStatusEnum("status").notNull(),
 
@@ -133,10 +139,22 @@ export const registrations = pgTable("registrations", (t) => ({
   deletedAt: t.timestamp(),
 }));
 
+export const registrationRelations = relations(registrations, ({ one, many }) => ({
+  athlete: one(athlete, {
+    fields: [registrations.athleteId],
+    references: [athlete.id],
+  }),
+  tournament: one(tournament, {
+    fields: [registrations.tournamentId],
+    references: [tournament.id],
+  }),
+}));
+
 
 export * from "./auth-schema";
 
 export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number]
 export type DivisionEnum = typeof divisionEnum.enumValues[number]
 export type WeightClassEnum = typeof weightClassEnum.enumValues[number]
+export type EventEnum = typeof eventEnum.enumValues[number]
 

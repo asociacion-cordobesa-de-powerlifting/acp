@@ -182,13 +182,17 @@ export function AthletesTable() {
             header: 'División',
             cell: ({ row }) => {
                 const year = row.original.birthYear;
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - year;
                 if (!year) return "-";
                 // We likely need to map the display label here if the divisionKey is the value
                 // Checking constants.ts, ATHLETE_DIVISION is an array of objects { label, value }
                 // We need to find the label corresponding to the value returned by getAthleteDivision(year)
                 const divisionKey = getAthleteDivision(year);
                 const division = ATHLETE_DIVISION.find(d => d.value === divisionKey);
-                return division ? division.label : divisionKey;
+                return `
+                ${division ? division.label : divisionKey} (${age})
+                `
             },
             filterFn: (row, id, value) => {
                 // The value here is likely the division key (e.g. 'open')

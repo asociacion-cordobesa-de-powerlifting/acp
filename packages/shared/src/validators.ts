@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { createInsertSchema } from "drizzle-zod";
-import { tournament, athlete, registrations, weightClassEnum, divisionEnum } from "@acme/db/schema";
+import { tournament, athlete, registrations, weightClassEnum, divisionEnum, eventEnum } from "@acme/db/schema";
 // import type { WeightClassEnum, AthleteDivisionEnum } from "@acme/db/schema";
 
 export const tournamentValidator = createInsertSchema(tournament, {
@@ -33,9 +33,10 @@ export const registrationValidator = createInsertSchema(registrations, {
     tournamentId: z.string({ message: "Seleccione un torneo" }).uuid("Seleccione un torneo válido"),
     weightClass: z.enum(weightClassEnum.enumValues, { message: "Categoría de peso inválida" }),
     division: z.enum(divisionEnum.enumValues, { message: "División inválida" }),
-    squatOpenerKg: z.number({ message: "Ingrese un valor" }).min(0, "Debe ser mayor a 0"),
-    benchOpenerKg: z.number({ message: "Ingrese un valor" }).min(0, "Debe ser mayor a 0"),
-    deadliftOpenerKg: z.number({ message: "Ingrese un valor" }).min(0, "Debe ser mayor a 0"),
+    event: z.enum(eventEnum.enumValues, { message: "Evento inválido" }),
+    squatOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
+    benchOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
+    deadliftOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
 }).omit({
     id: true,
     teamId: true,
@@ -43,4 +44,14 @@ export const registrationValidator = createInsertSchema(registrations, {
     createdAt: true,
     updatedAt: true,
     deletedAt: true,
+});
+
+export const updateRegistrationSchema = z.object({
+    id: z.string().uuid(),
+    weightClass: z.enum(weightClassEnum.enumValues, { message: "Categoría de peso inválida" }),
+    division: z.enum(divisionEnum.enumValues, { message: "División inválida" }),
+    event: z.enum(eventEnum.enumValues, { message: "Evento inválido" }),
+    squatOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
+    benchOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
+    deadliftOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
 });

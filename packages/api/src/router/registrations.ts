@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure } from "../trpc";
-import { registrations, registrationStatusEnum, tournament, athlete, teamData } from "@acme/db/schema";
+import { registrations, registrationStatusEnum, tournament, athlete, teamData, weightClassEnum, divisionEnum, eventEnum } from "@acme/db/schema";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { eq, and } from "@acme/db";
 import { registrationValidator } from "@acme/shared/validators";
@@ -41,12 +41,21 @@ export const registrationsRouter = {
                 where: eq(tournament.id, input.tournamentId)
             });
 
+
             if (!tournamentExists) {
                 throw new TRPCError({
                     code: "NOT_FOUND",
                     message: "Torneo no encontrado.",
                 });
             }
+
+            if (tournamentExists.status === "preliminary_open" && input.division !== "open") {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "En etapa preliminar solo se permiten inscripciones en la división Open.",
+                });
+            }
+
 
             // 4. Check if already registered
             const existing = await ctx.db.query.registrations.findFirst({
@@ -68,5 +77,95 @@ export const registrationsRouter = {
                 teamId: team.id,
                 status: "pending",
             });
+        }),
+
+    byTeam: protectedProcedure
+        .query(async ({ ctx }) => {
+            const team = await ctx.db.query.teamData.findFirst({
+                where: eq(teamData.userId, ctx.session.user.id)
+            });
+
+            if (!team) throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "No se encontró un equipo asociado a tu cuenta.",
+            });
+
+            return await ctx.db.query.registrations.findMany({
+                where: eq(registrations.teamId, team.id),
+                with: {
+                    athlete: true,
+                    tournament: true,
+                },
+                orderBy: (registrations, { desc }) => [desc(registrations.createdAt)],
+            });
+        }),
+
+    update: protectedProcedure
+        .input(z.object({
+            id: z.string().uuid(),
+            weightClass: z.enum(weightClassEnum.enumValues),
+            division: z.enum(divisionEnum.enumValues),
+            event: z.enum(eventEnum.enumValues),
+            squatOpenerKg: z.number().min(0).nullable().optional(),
+            benchOpenerKg: z.number().min(0).nullable().optional(),
+            deadliftOpenerKg: z.number().min(0).nullable().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const team = await ctx.db.query.teamData.findFirst({
+                where: eq(teamData.userId, ctx.session.user.id)
+            });
+
+            if (!team) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "No tienes un equipo asociado." });
+            }
+
+            // Verify ownership
+            const existing = await ctx.db.query.registrations.findFirst({
+                where: and(
+                    eq(registrations.id, input.id),
+                    eq(registrations.teamId, team.id)
+                )
+            });
+
+            if (!existing) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Inscripción no encontrada." });
+            }
+
+            return ctx.db.update(registrations)
+                .set({
+                    weightClass: input.weightClass,
+                    division: input.division,
+                    event: input.event,
+                    squatOpenerKg: input.squatOpenerKg,
+                    benchOpenerKg: input.benchOpenerKg,
+                    deadliftOpenerKg: input.deadliftOpenerKg,
+                })
+                .where(eq(registrations.id, input.id));
+        }),
+
+    delete: protectedProcedure
+        .input(z.object({ id: z.string().uuid() }))
+        .mutation(async ({ ctx, input }) => {
+            const team = await ctx.db.query.teamData.findFirst({
+                where: eq(teamData.userId, ctx.session.user.id)
+            });
+
+            if (!team) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "No tienes un equipo asociado." });
+            }
+
+            // Verify ownership
+            const existing = await ctx.db.query.registrations.findFirst({
+                where: and(
+                    eq(registrations.id, input.id),
+                    eq(registrations.teamId, team.id)
+                )
+            });
+
+            if (!existing) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Inscripción no encontrada." });
+            }
+
+            return ctx.db.delete(registrations).where(eq(registrations.id, input.id));
         }),
 } satisfies TRPCRouterRecord;
