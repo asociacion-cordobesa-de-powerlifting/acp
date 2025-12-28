@@ -35,7 +35,7 @@ import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS } from "@acme/shared/constants"
+import { ATHLETE_DIVISION, EQUIPMENT, EVENTS, TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { toast } from "@acme/ui/toast"
 import { EyeIcon, UserPlusIcon } from "@acme/ui/icons"
 import { RegisterAthleteToTournamentDialog } from "../../_components/register-athlete-dialog"
@@ -111,6 +111,42 @@ export function TournamentsDataTable() {
                 )
             },
         },
+        {
+                    accessorKey: 'division',
+                    header: 'División',
+                    cell: ({ row }) => {
+                        const division = row.original.division
+                        const label = ATHLETE_DIVISION.find((d) => d.value === division)?.label ?? division
+                        return <Badge variant="secondary">{label}</Badge>
+                    },
+                    filterFn: (row, id, value) => {
+                        return value.includes(row.getValue(id))
+                    },
+                },
+                {
+                    accessorKey: 'event',
+                    header: 'Evento',
+                    cell: ({ row }) => {
+                        const event = row.original.event
+                        const label = EVENTS.find((e) => e.value === event)?.label ?? event
+                        return <Badge variant="secondary">{label}</Badge>
+                    },
+                    filterFn: (row, id, value) => {
+                        return value.includes(row.getValue(id))
+                    },
+                },
+                {
+                    accessorKey: 'equipment',
+                    header: 'Equipo',
+                    cell: ({ row }) => {
+                        const equipment = row.original.equipment
+                        const label = EQUIPMENT.find((e) => e.value === equipment)?.label ?? equipment
+                        return <Badge variant="secondary">{label}</Badge>
+                    },
+                    filterFn: (row, id, value) => {
+                        return value.includes(row.getValue(id))
+                    },
+                },
         {
             accessorKey: 'venue',
             header: 'Sede',
