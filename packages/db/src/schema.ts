@@ -86,6 +86,9 @@ export const tournament = pgTable("tournament", (t) => ({
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }).notNull(),
   status: tournamentStatusEnum("status").notNull(),
+  division: divisionEnum("division").notNull().default("open"),
+  event: eventEnum("event").notNull().default("full"),
+  equipment: equipmentEnum("equipment").notNull().default("raw"),
   maxAthletes: t.integer(),
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
@@ -107,6 +110,9 @@ export const athlete = pgTable("athlete", (t) => ({
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(),
+  squatBestKg: t.real().notNull(),
+  benchBestKg: t.real().notNull(),
+  deadliftBestKg: t.real().notNull(),
 }));
 
 // Inscripciones (nómina preliminar)
@@ -129,8 +135,6 @@ export const registrations = pgTable("registrations", (t) => ({
     .references(() => athlete.id),
 
   weightClass: weightClassEnum("weight_class").notNull(),
-  division: divisionEnum("division").notNull(),
-  event: eventEnum("event").notNull(),
 
   squatOpenerKg: t.real(),
   benchOpenerKg: t.real(),

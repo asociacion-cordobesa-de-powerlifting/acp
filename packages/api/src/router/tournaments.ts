@@ -42,7 +42,6 @@ export const tournamentsRouter = {
 
             const newTournament = await ctx.db.insert(tournament).values({
                 ...input,
-                status: 'preliminary_open',
                 slug,
             });
 

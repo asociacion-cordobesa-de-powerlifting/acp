@@ -1,0 +1,5 @@
+.                                        | ÔÇëWARNÔÇë Unsupported engine: wanted: {"node":"^22.21.0"} (current: {"node":"v23.6.1","pnpm":"10.19.0"})
+
+> @acme/shared@0.1.0 build C:\Users\gonza\Desktop\Gonzalo Manuel Morales\development\projects\ACP\packages\shared
+> tsc
+

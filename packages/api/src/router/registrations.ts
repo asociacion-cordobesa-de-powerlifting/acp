@@ -49,12 +49,6 @@ export const registrationsRouter = {
                 });
             }
 
-            if (tournamentExists.status === "preliminary_open" && input.division !== "open") {
-                throw new TRPCError({
-                    code: "BAD_REQUEST",
-                    message: "En etapa preliminar solo se permiten inscripciones en la división Open.",
-                });
-            }
 
 
             // 4. Check if already registered
@@ -104,8 +98,6 @@ export const registrationsRouter = {
         .input(z.object({
             id: z.string().uuid(),
             weightClass: z.enum(weightClassEnum.enumValues),
-            division: z.enum(divisionEnum.enumValues),
-            event: z.enum(eventEnum.enumValues),
             squatOpenerKg: z.number().min(0).nullable().optional(),
             benchOpenerKg: z.number().min(0).nullable().optional(),
             deadliftOpenerKg: z.number().min(0).nullable().optional(),
@@ -134,8 +126,6 @@ export const registrationsRouter = {
             return ctx.db.update(registrations)
                 .set({
                     weightClass: input.weightClass,
-                    division: input.division,
-                    event: input.event,
                     squatOpenerKg: input.squatOpenerKg,
                     benchOpenerKg: input.benchOpenerKg,
                     deadliftOpenerKg: input.deadliftOpenerKg,

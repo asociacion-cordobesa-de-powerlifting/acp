@@ -50,6 +50,7 @@ import {
     AlertDialogTitle,
 } from "@acme/ui/alert-dialog"
 import { toast } from "@acme/ui/toast"
+import { dayjs } from "@acme/shared/libs"
 
 // Helper type for Athlete
 type Athlete = RouterOutputs["athletes"]["list"][number]
@@ -173,6 +174,18 @@ export function AthletesTable() {
             header: 'DNI',
         },
         {
+            id: 'bestLifts',
+            header: "Mejores Marcas",
+            cell: ({ row }) => {
+                const athlete = row.original;
+                return (
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">{athlete.squatBestKg} / {athlete.benchBestKg} / {athlete.deadliftBestKg}</span>
+                    </div>
+                )
+            }
+        },
+        {
             accessorKey: 'birthYear',
             header: 'Año de nacimiento',
         },
@@ -182,7 +195,7 @@ export function AthletesTable() {
             header: 'División',
             cell: ({ row }) => {
                 const year = row.original.birthYear;
-                const currentYear = new Date().getFullYear();
+                const currentYear = dayjs().year();
                 const age = currentYear - year;
                 if (!year) return "-";
                 // We likely need to map the display label here if the divisionKey is the value

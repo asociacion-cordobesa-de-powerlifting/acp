@@ -146,10 +146,11 @@ export function RegistrationsDataTable() {
             },
         },
         {
-            accessorKey: 'division',
+            accessorKey: 'tournament.division',
+            id: 'division',
             header: 'División',
             cell: ({ row }) => {
-                const division = row.original.division
+                const division = row.original.tournament.division
                 const label = ATHLETE_DIVISION.find((d) => d.value === division)?.label ?? division
                 return label
             },
@@ -170,10 +171,11 @@ export function RegistrationsDataTable() {
             },
         },
         {
-            accessorKey: 'event',
+            accessorKey: 'tournament.event',
+            id: 'event',
             header: 'Evento',
             cell: ({ row }) => {
-                const event = row.original.event
+                const event = row.original.tournament.event
                 const label = EVENTS.find((e) => e.value === event)?.label ?? event
                 return label
             }

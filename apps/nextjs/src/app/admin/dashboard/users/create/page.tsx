@@ -30,7 +30,7 @@ export default function CreateUserPage() {
                 email: values.email,
                 password: values.password,
                 name: values.name,
-                role: values.role
+                role: values.role as any
             });
             if (error) throw error;
         },

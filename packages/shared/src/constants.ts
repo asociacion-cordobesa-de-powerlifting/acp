@@ -1,4 +1,4 @@
-import { DivisionEnum, EventEnum, TournamentStatusEnum, WeightClassEnum } from "@acme/db/schema"
+import { DivisionEnum, EquipmentEnum, EventEnum, TournamentStatusEnum, WeightClassEnum } from "@acme/db/schema"
 
 type Selection<Enum> = {
     label: string,
@@ -9,7 +9,6 @@ type Selection<Enum> = {
 export const DEFAULT_USER_IMAGE = "https://i0.wp.com/www.stignatius.co.uk/wp-content/uploads/2020/10/default-user-icon.jpg?fit=415%2C415&ssl=1"
 
 export const TOURNAMENT_STATUS: Selection<TournamentStatusEnum>[] = [
-    { label: "Borrador", value: "draft" },
     { label: "Preliminar Abierto", value: "preliminary_open" },
     { label: "Preliminar Cerrado", value: "preliminary_closed" },
     { label: "Finalizado", value: "finished" },
@@ -72,4 +71,9 @@ export const DIVISION_RULES = [
 export const EVENTS: Selection<EventEnum>[] = [
     { label: "Full Powerlifting", value: "full" },
     { label: "Bench Press Only", value: "bench" },
+]
+
+export const EQUIPMENT: Selection<EquipmentEnum>[] = [
+    { label: "Raw", value: "raw" },
+    { label: "Equipped", value: "equipped" },
 ]

@@ -34,6 +34,9 @@ import {
 import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
 import { athleteValidator } from "@acme/shared/validators"
+import * as z from 'zod/v4'
+
+import { dayjs } from "@acme/shared/libs"
 
 export function CreateAthleteDialog() {
     const [open, setOpen] = useState(false)
@@ -56,13 +59,18 @@ export function CreateAthleteDialog() {
         })
     )
 
+    const defaultValues: z.input<typeof athleteValidator> = {
+        fullName: "",
+        dni: "",
+        birthYear: dayjs().year() - 18,
+        gender: "M" as "M" | "F",
+        squatBestKg: 0,
+        benchBestKg: 0,
+        deadliftBestKg: 0,
+    }
+
     const form = useForm({
-        defaultValues: {
-            fullName: "",
-            dni: "",
-            birthYear: new Date().getFullYear() - 18,
-            gender: "M" as "M" | "F",
-        },
+        defaultValues,
         validators: {
             onChange: athleteValidator,
         },
@@ -197,6 +205,87 @@ export function CreateAthleteDialog() {
                                 )
                             }}
                         />
+
+                        <div className="pt-2">
+                            <h4 className="text-sm font-medium mb-3">Mejores Marcas (Kg)</h4>
+                            <div className="grid grid-cols-3 gap-4">
+                                <form.Field
+                                    name="squatBestKg"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Sentadilla</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    type="number"
+                                                    value={field.state.value}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                    placeholder="Ej: 100"
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                                <form.Field
+                                    name="benchBestKg"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Banca</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    type="number"
+                                                    value={field.state.value}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                    placeholder="Ej: 80"
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                                <form.Field
+                                    name="deadliftBestKg"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Despegue</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    type="number"
+                                                    value={field.state.value}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                    placeholder="Ej: 120"
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-2 italic">
+                                * Estos datos son aproximados y sirven para la organización inicial de los grupos.
+                            </p>
+                        </div>
 
                     </FieldGroup>
                     <DialogFooter>

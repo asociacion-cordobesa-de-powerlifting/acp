@@ -1,5 +1,7 @@
+import { dayjs } from "../lib";
+
 export function getAthleteDivision(birthYear: number): string {
-    const currentYear = new Date().getFullYear();
+    const currentYear = dayjs().year();
     const age = currentYear - birthYear;
 
     if (age >= 14 && age <= 18) return "subjunior";
@@ -14,7 +16,7 @@ export function getAthleteDivision(birthYear: number): string {
 }
 
 export function getEligibleDivisions(birthYear: number): string[] {
-    const currentYear = new Date().getFullYear();
+    const currentYear = dayjs().year();
     const age = currentYear - birthYear;
 
     const divisions: string[] = [];

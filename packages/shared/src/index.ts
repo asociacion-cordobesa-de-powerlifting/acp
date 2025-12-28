@@ -1,5 +1,6 @@
 import es from 'dayjs/locale/es'
 import { dayjs } from './lib/dayjs';
+export { dayjs };
 
 // comparar objetos de manera profunda
 export function isDeepEqualObjs(object1: Object, object2: Object) {

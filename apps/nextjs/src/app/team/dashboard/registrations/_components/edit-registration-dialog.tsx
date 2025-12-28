@@ -36,7 +36,7 @@ import { useTRPC } from "~/trpc/react"
 import { updateRegistrationSchema } from "@acme/shared/validators"
 import { weightClassEnum, divisionEnum } from "@acme/db/schema"
 import { getEligibleDivisions, getEligibleWeightClasses } from "@acme/shared"
-import { ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS } from "@acme/shared/constants"
+import { ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS, EQUIPMENT } from "@acme/shared/constants"
 import { RouterOutputs } from "@acme/api"
 
 // Helper type
@@ -76,8 +76,6 @@ export function EditRegistrationDialog({
         defaultValues: {
             id: registration.id,
             weightClass: registration.weightClass,
-            division: registration.division,
-            event: registration.event,
             squatOpenerKg: registration.squatOpenerKg,
             benchOpenerKg: registration.benchOpenerKg,
             deadliftOpenerKg: registration.deadliftOpenerKg,
@@ -90,15 +88,17 @@ export function EditRegistrationDialog({
         },
     })
 
-    // Get available options (dynamically filtered by original athlete data)
-    // NOTE: This assumes the athlete's birthYear and gender haven't changed.
-    const availableDivisions = !registration.athlete.birthYear
-        ? divisionEnum.enumValues
-        : getEligibleDivisions(registration.athlete.birthYear);
+    const division = registration.tournament.division;
+    const event = registration.tournament.event;
+    const equipment = registration.tournament.equipment;
 
-    const availableWeightClasses = !registration.athlete.gender
+    const divisionLabel = ATHLETE_DIVISION.find(ad => ad.value === division)?.label ?? division;
+    const eventLabel = EVENTS.find(e => e.value === event)?.label ?? event;
+    const equipmentLabel = EQUIPMENT.find(e => e.value === equipment)?.label ?? equipment;
+
+    const availableWeightClasses = !registration.athlete.gender || !division
         ? weightClassEnum.enumValues
-        : getEligibleWeightClasses(registration.athlete.gender as "M" | "F", registration.athlete.birthYear.toString());
+        : getEligibleWeightClasses(registration.athlete.gender as "M" | "F", division);
 
 
     return (
@@ -120,28 +120,43 @@ export function EditRegistrationDialog({
                     className="space-y-4"
                 >
                     <FieldGroup>
-                        {/* DIVISION SELECTOR */}
+                        <div className="grid grid-cols-3 gap-2 p-3 bg-muted/50 rounded-lg text-sm">
+                            <div>
+                                <p className="text-muted-foreground font-medium">División</p>
+                                <p className="font-semibold">{divisionLabel}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground font-medium">Evento</p>
+                                <p className="font-semibold">{eventLabel}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground font-medium">Modalidad</p>
+                                <p className="font-semibold">{equipmentLabel}</p>
+                            </div>
+                        </div>
+
+                        {/* WEIGHT CLASS SELECTOR */}
                         <form.Field
-                            name="division"
+                            name="weightClass"
                             children={(field) => {
                                 const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                 return (
                                     <Field data-invalid={isInvalid}>
                                         <FieldContent>
-                                            <FieldLabel htmlFor={field.name}>División</FieldLabel>
+                                            <FieldLabel htmlFor={field.name}>Categoría de Peso</FieldLabel>
                                         </FieldContent>
                                         <Select
                                             value={field.state.value}
                                             onValueChange={(val) => field.handleChange(val as any)}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Seleccione División" />
+                                                <SelectValue placeholder="Seleccione Categoría" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {availableDivisions.map(d => {
-                                                    const label = ATHLETE_DIVISION.find(ad => ad.value === d)?.label ?? d;
+                                                {availableWeightClasses.map(w => {
+                                                    const label = WEIGHT_CLASSES.find(wc => wc.value === w)?.label ?? w;
                                                     return (
-                                                        <SelectItem key={d} value={d}>{label}</SelectItem>
+                                                        <SelectItem key={w} value={w}>{label}</SelectItem>
                                                     )
                                                 })}
                                             </SelectContent>
@@ -152,163 +167,86 @@ export function EditRegistrationDialog({
                             }}
                         />
 
-                        {/* WEIGHT CLASS SELECTOR */}
-                        <form.Subscribe
-                            selector={(state) => state.values.division}
-                            children={(division) => {
-                                const availableWeightClasses = !registration.athlete.gender
-                                    ? weightClassEnum.enumValues
-                                    : getEligibleWeightClasses(registration.athlete.gender as "M" | "F", division);
-
-                                return (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-4">
+                                {event === 'full' && (
                                     <form.Field
-                                        name="weightClass"
+                                        name="squatOpenerKg"
                                         children={(field) => {
                                             const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                             return (
                                                 <Field data-invalid={isInvalid}>
                                                     <FieldContent>
-                                                        <FieldLabel htmlFor={field.name}>Categoría de Peso</FieldLabel>
+                                                        <FieldLabel htmlFor={field.name}>Opener Sentadilla (Kg)</FieldLabel>
                                                     </FieldContent>
-                                                    <Select
-                                                        value={field.state.value}
-                                                        onValueChange={(val) => field.handleChange(val as any)}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Seleccione Categoría" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {availableWeightClasses.map(w => {
-                                                                const label = WEIGHT_CLASSES.find(wc => wc.value === w)?.label ?? w;
-                                                                return (
-                                                                    <SelectItem key={w} value={w}>{label}</SelectItem>
-                                                                )
-                                                            })}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Input
+                                                        id={field.name}
+                                                        name={field.name}
+                                                        type="number"
+                                                        value={field.state.value ?? ""}
+                                                        onBlur={field.handleBlur}
+                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                        aria-invalid={isInvalid}
+                                                    />
                                                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                                 </Field>
                                             )
                                         }}
                                     />
-                                )
-                            }}
-                        />
+                                )}
 
-                        {/* EVENT SELECTOR */}
-                        <form.Subscribe
-                            selector={(state) => [state.values.event]}
-                            children={([event]) => (
-                                <div className="space-y-4">
+                                {/* BANCO ALWAYS */}
+                                <form.Field
+                                    name="benchOpenerKg"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Opener Banco (Kg)</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    type="number"
+                                                    value={field.state.value ?? ""}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+
+                                {event === 'full' && (
                                     <form.Field
-                                        name="event"
+                                        name="deadliftOpenerKg"
                                         children={(field) => {
                                             const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                             return (
                                                 <Field data-invalid={isInvalid}>
                                                     <FieldContent>
-                                                        <FieldLabel htmlFor={field.name}>Evento</FieldLabel>
+                                                        <FieldLabel htmlFor={field.name}>Opener Despegue (Kg)</FieldLabel>
                                                     </FieldContent>
-                                                    <Select
-                                                        value={field.state.value}
-                                                        onValueChange={(val) => field.handleChange(val as any)}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Seleccione Evento" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {EVENTS.map(d => (
-                                                                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Input
+                                                        id={field.name}
+                                                        name={field.name}
+                                                        type="number"
+                                                        value={field.state.value ?? ""}
+                                                        onBlur={field.handleBlur}
+                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                        aria-invalid={isInvalid}
+                                                    />
                                                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                                 </Field>
                                             )
                                         }}
                                     />
-
-                                    <div className="grid grid-cols-3 gap-4">
-                                        {event === 'full' && (
-                                            <form.Field
-                                                name="squatOpenerKg"
-                                                children={(field) => {
-                                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                                    return (
-                                                        <Field data-invalid={isInvalid}>
-                                                            <FieldContent>
-                                                                <FieldLabel htmlFor={field.name}>Sentadilla (Kg)</FieldLabel>
-                                                            </FieldContent>
-                                                            <Input
-                                                                id={field.name}
-                                                                name={field.name}
-                                                                type="number"
-                                                                value={field.state.value ?? ""}
-                                                                onBlur={field.handleBlur}
-                                                                onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                                aria-invalid={isInvalid}
-                                                            />
-                                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                        </Field>
-                                                    )
-                                                }}
-                                            />
-                                        )}
-
-                                        {/* BANCO ALWAYS */}
-                                        <form.Field
-                                            name="benchOpenerKg"
-                                            children={(field) => {
-                                                const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                                return (
-                                                    <Field data-invalid={isInvalid}>
-                                                        <FieldContent>
-                                                            <FieldLabel htmlFor={field.name}>Banco (Kg)</FieldLabel>
-                                                        </FieldContent>
-                                                        <Input
-                                                            id={field.name}
-                                                            name={field.name}
-                                                            type="number"
-                                                            value={field.state.value ?? ""}
-                                                            onBlur={field.handleBlur}
-                                                            onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                            aria-invalid={isInvalid}
-                                                        />
-                                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                    </Field>
-                                                )
-                                            }}
-                                        />
-
-                                        {event === 'full' && (
-                                            <form.Field
-                                                name="deadliftOpenerKg"
-                                                children={(field) => {
-                                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                                    return (
-                                                        <Field data-invalid={isInvalid}>
-                                                            <FieldContent>
-                                                                <FieldLabel htmlFor={field.name}>Despegue (Kg)</FieldLabel>
-                                                            </FieldContent>
-                                                            <Input
-                                                                id={field.name}
-                                                                name={field.name}
-                                                                type="number"
-                                                                value={field.state.value ?? ""}
-                                                                onBlur={field.handleBlur}
-                                                                onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                                aria-invalid={isInvalid}
-                                                            />
-                                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                        </Field>
-                                                    )
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        />
+                                )}
+                            </div>
+                        </div>
                     </FieldGroup>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

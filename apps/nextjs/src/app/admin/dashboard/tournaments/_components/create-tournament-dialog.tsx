@@ -39,6 +39,7 @@ import { tournamentStatusEnum } from "@acme/db/schema"
 import { env } from "~/env"
 import * as z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
+import { ATHLETE_DIVISION, EVENTS, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 
 export function CreateTournamentDialog() {
     const [open, setOpen] = useState(false)
@@ -68,7 +69,10 @@ export function CreateTournamentDialog() {
         maxAthletes: 0 as number | null,
         startDate: dayjs().toDate(),
         endDate: dayjs().toDate(),
-        status: "preliminary_open" as const,
+        status: "preliminary_open",
+        division: "open",
+        event: "full",
+        equipment: "raw",
     }
 
     const form = useForm({
@@ -276,10 +280,93 @@ export function CreateTournamentDialog() {
                                                     <SelectValue placeholder="Seleccione estado" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="draft">Borrador</SelectItem>
-                                                    <SelectItem value="preliminary_open">Preliminar Abierto</SelectItem>
-                                                    <SelectItem value="preliminary_closed">Preliminar Cerrado</SelectItem>
-                                                    <SelectItem value="finished">Finalizado</SelectItem>
+                                                    {TOURNAMENT_STATUS.map(s => (
+                                                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                            <form.Field
+                                name="division"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>División</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: any) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="División" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {ATHLETE_DIVISION.map(d => (
+                                                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                            <form.Field
+                                name="event"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Evento</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: any) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Evento" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {EVENTS.map(e => (
+                                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                            <form.Field
+                                name="equipment"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Equipamiento</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: any) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Equipamiento" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {EQUIPMENT.map(e => (
+                                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                                                    ))}
                                                 </SelectContent>
                                             </Select>
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}

@@ -1,7 +1,6 @@
 import { z } from "zod/v4";
-import { createInsertSchema } from "drizzle-zod";
-import { tournament, athlete, registrations, weightClassEnum, divisionEnum, eventEnum, tournamentStatusEnum } from "@acme/db/schema";
-// import type { WeightClassEnum, AthleteDivisionEnum } from "@acme/db/schema";
+import { tournament, athlete, registrations, weightClassEnum, divisionEnum, eventEnum, tournamentStatusEnum, equipmentEnum, genderEnum } from "@acme/db/schema";
+import { dayjs } from "./lib";
 
 export const tournamentValidator = z.object({
     name: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
@@ -11,6 +10,9 @@ export const tournamentValidator = z.object({
     startDate: z.date({ message: "La fecha de inicio es requerida" }),
     endDate: z.date({ message: "La fecha de fin es requerida" }),
     status: z.enum(tournamentStatusEnum.enumValues, { message: "Estado inválido" }),
+    division: z.enum(divisionEnum.enumValues, { message: "División inválida" }),
+    event: z.enum(eventEnum.enumValues, { message: "Evento inválido" }),
+    equipment: z.enum(equipmentEnum.enumValues, { message: "Equipamiento inválido" }),
 }).refine((data) => !data.endDate || !data.startDate || data.endDate >= data.startDate, {
     message: "La fecha de fin no puede ser anterior a la fecha de inicio",
     path: ["endDate"],
@@ -28,42 +30,29 @@ export const tournamentValidator = z.object({
 //     path: ["endDate"],
 // });
 
-export const athleteValidator = createInsertSchema(athlete, {
+export const athleteValidator = z.object({
     fullName: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
     dni: z.string().min(6, "El DNI debe tener al menos 6 caracteres"),
-    birthYear: z.number({ message: "Ingrese un año válido" }).int().min(1900, "Año inválido").max(new Date().getFullYear(), "Año inválido"),
-    gender: z.enum(["M", "F"], { message: "Seleccione un género válido" }),
-}).omit({
-    id: true,
-    teamId: true,
-    createdAt: true,
-    updatedAt: true,
-    deletedAt: true,
+    birthYear: z.number({ message: "Ingrese un año válido" }).int().min(1900, "Año inválido").max(dayjs().year(), "Año inválido"),
+    gender: z.enum(genderEnum.enumValues, { message: "Seleccione un género válido" }),
+    goodliftRef: z.string().optional().nullable(),
+    squatBestKg: z.number({ message: "La mejor sentadilla es requerida" }).min(0, "Debe ser mayor o igual a 0"),
+    benchBestKg: z.number({ message: "El mejor banco es requerido" }).min(0, "Debe ser mayor o igual a 0"),
+    deadliftBestKg: z.number({ message: "El mejor despegue es requerido" }).min(0, "Debe ser mayor o igual a 0"),
 });
 
-export const registrationValidator = createInsertSchema(registrations, {
-    athleteId: z.string({ message: "Seleccione un atleta" }).uuid("Seleccione un atleta válido"),
-    tournamentId: z.string({ message: "Seleccione un torneo" }).uuid("Seleccione un torneo válido"),
+export const registrationValidator = z.object({
+    athleteId: z.uuid("Seleccione un atleta válido"),
+    tournamentId: z.uuid("Seleccione un torneo válido"),
     weightClass: z.enum(weightClassEnum.enumValues, { message: "Categoría de peso inválida" }),
-    division: z.enum(divisionEnum.enumValues, { message: "División inválida" }),
-    event: z.enum(eventEnum.enumValues, { message: "Evento inválido" }),
     squatOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
     benchOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
     deadliftOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
-}).omit({
-    id: true,
-    teamId: true,
-    status: true,
-    createdAt: true,
-    updatedAt: true,
-    deletedAt: true,
 });
 
 export const updateRegistrationSchema = z.object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     weightClass: z.enum(weightClassEnum.enumValues, { message: "Categoría de peso inválida" }),
-    division: z.enum(divisionEnum.enumValues, { message: "División inválida" }),
-    event: z.enum(eventEnum.enumValues, { message: "Evento inválido" }),
     squatOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
     benchOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
     deadliftOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),

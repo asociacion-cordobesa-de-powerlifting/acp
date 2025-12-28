@@ -35,7 +35,7 @@ import { useTRPC } from "~/trpc/react"
 import { tournamentValidator } from "@acme/shared/validators"
 import { DatePicker } from "~/app/_components/time-picker/picker"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS } from "@acme/shared/constants"
+import { TOURNAMENT_STATUS, ATHLETE_DIVISION, EVENTS, EQUIPMENT } from "@acme/shared/constants"
 import z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
 
@@ -71,15 +71,18 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
     )
 
     const defaultValues: z.input<typeof EditTournamentDialogSchema> = {
-            id: tournament.id,
-            name: tournament.name,
-            venue: tournament.venue,
-            location: tournament.location,
-            maxAthletes: tournament.maxAthletes,
-            startDate: tournament.startDate ? dayjs(tournament.startDate).toDate() : dayjs().toDate(),
-            endDate: tournament.endDate ? dayjs(tournament.endDate).toDate() : dayjs().toDate(),
-            status: tournament.status,
-        }
+        id: tournament.id,
+        name: tournament.name,
+        venue: tournament.venue,
+        location: tournament.location,
+        maxAthletes: tournament.maxAthletes,
+        startDate: tournament.startDate ? dayjs(tournament.startDate).toDate() : dayjs().toDate(),
+        endDate: tournament.endDate ? dayjs(tournament.endDate).toDate() : dayjs().toDate(),
+        status: tournament.status,
+        division: tournament.division as any,
+        event: tournament.event as any,
+        equipment: tournament.equipment as any,
+    }
 
     const form = useForm({
         defaultValues,
@@ -282,6 +285,90 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                                         <SelectItem key={option.value} value={option.value}>
                                                             {option.label}
                                                         </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                            <form.Field
+                                name="division"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>División</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: any) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="División" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {ATHLETE_DIVISION.map(d => (
+                                                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                            <form.Field
+                                name="event"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Evento</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: any) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Evento" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {EVENTS.map(e => (
+                                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+                            <form.Field
+                                name="equipment"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Equipamiento</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: any) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Equipamiento" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {EQUIPMENT.map(e => (
+                                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
