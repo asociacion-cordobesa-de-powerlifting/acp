@@ -43,7 +43,7 @@ export default function Navbar() {
               </a>
             ))}
 
-            <ThemeToggle />
+            {/* <ThemeToggle /> */}
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">

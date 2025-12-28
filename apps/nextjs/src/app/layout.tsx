@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Montserrat, Playfair_Display, Roboto_Mono } from "next/font/google";
 
 import { cn } from "@acme/ui";
-import { ThemeProvider, ThemeToggle } from "@acme/ui/theme";
+// import { ThemeProvider, ThemeToggle } from "@acme/ui/theme";
 import { Toaster } from "@acme/ui/toast";
 
 import { env } from "~/env";
@@ -66,13 +66,13 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           robotoMono.variable,
         )}
       >
-        <ThemeProvider>
+        {/* <ThemeProvider> */}
           <TRPCReactProvider>{props.children}</TRPCReactProvider>
           {/* <div className="absolute right-4 bottom-4">
             <ThemeToggle />
           </div> */}
           <Toaster />
-        </ThemeProvider>
+        {/* </ThemeProvider> */}
       </body>
     </html>
   );
