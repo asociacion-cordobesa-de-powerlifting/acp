@@ -21,7 +21,7 @@ export const tournamentsRouter = {
         .query(async ({ ctx }) => {
             return ctx.db.query.tournament.findMany({
                 orderBy: [desc(tournament.createdAt)],
-                where: not(eq(tournament.status, 'draft'))
+                where: not(eq(tournament.status, 'finished'))
             });
         }),
 
@@ -42,6 +42,7 @@ export const tournamentsRouter = {
 
             const newTournament = await ctx.db.insert(tournament).values({
                 ...input,
+                status: 'preliminary_open',
                 slug,
             });
 
@@ -49,7 +50,7 @@ export const tournamentsRouter = {
         }),
 
     update: adminProcedure
-        .input(tournamentValidator.and(z.object({ id: z.string().uuid() })))
+        .input(tournamentValidator.and(z.object({ id: z.uuid() })))
         .mutation(async ({ ctx, input }) => {
             const { id, ...data } = input;
             const slug = cleanAndLowercase(data.name);

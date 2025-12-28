@@ -36,6 +36,9 @@ import { useTRPC } from "~/trpc/react"
 import { tournamentValidator } from "@acme/shared/validators"
 import { DatePicker } from "~/app/_components/time-picker/picker"
 import { tournamentStatusEnum } from "@acme/db/schema"
+import { env } from "~/env"
+import * as z from "zod/v4"
+import { dayjs } from "@acme/shared/libs"
 
 export function CreateTournamentDialog() {
     const [open, setOpen] = useState(false)
@@ -58,18 +61,20 @@ export function CreateTournamentDialog() {
         })
     )
 
+    const defaultValues: z.input<typeof tournamentValidator> = {
+        name: "",
+        venue: "",
+        location: "",
+        maxAthletes: 0 as number | null,
+        startDate: dayjs().toDate(),
+        endDate: dayjs().toDate(),
+        status: "preliminary_open" as const,
+    }
+
     const form = useForm({
-        defaultValues: {
-            name: "",
-            venue: "",
-            location: "",
-            maxAthletes: 0 as number | null,
-            startDate: new Date(),
-            endDate: new Date(),
-            status: "draft" as const,
-        },
+        defaultValues,
         validators: {
-            onChange: tournamentValidator as any,
+            onSubmit: tournamentValidator,
         },
         onSubmit: ({ value }) => {
             // Validator expects Date objects for dates, which DatePicker provides.
@@ -84,7 +89,7 @@ export function CreateTournamentDialog() {
             createTournament.mutate({
                 ...value,
                 // Ensure types match what zod expects if form state diverges
-            } as any)
+            })
         },
     })
 
@@ -286,6 +291,13 @@ export function CreateTournamentDialog() {
 
                     </FieldGroup>
                     <DialogFooter>
+                        {
+                            env.NODE_ENV === "development" && (
+                                <Button type="button" onClick={() => console.log(form.state.errors)}>
+                                    Mostrar errores en consola
+                                </Button>
+                            )
+                        }
                         <Button type="submit" disabled={createTournament.isPending}>
                             {createTournament.isPending && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

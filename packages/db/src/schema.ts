@@ -43,8 +43,12 @@ export const eventEnum = pgEnum("event", [
   "bench"
 ]);
 
+export const equipmentEnum = pgEnum('equipment', [
+  "raw",
+  "equipped"
+])
+
 export const tournamentStatusEnum = pgEnum("tournament_status", [
-  "draft",
   "preliminary_open",
   "preliminary_closed",
   "finished",
@@ -157,4 +161,4 @@ export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number
 export type DivisionEnum = typeof divisionEnum.enumValues[number]
 export type WeightClassEnum = typeof weightClassEnum.enumValues[number]
 export type EventEnum = typeof eventEnum.enumValues[number]
-
+export type EquipmentEnum = typeof equipmentEnum.enumValues[number]

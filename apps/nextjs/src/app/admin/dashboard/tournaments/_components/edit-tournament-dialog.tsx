@@ -36,6 +36,8 @@ import { tournamentValidator } from "@acme/shared/validators"
 import { DatePicker } from "~/app/_components/time-picker/picker"
 import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_STATUS } from "@acme/shared/constants"
+import z from "zod/v4"
+import { dayjs } from "@acme/shared/libs"
 
 type Tournament = RouterOutputs["tournaments"]["list"][number]
 
@@ -44,6 +46,10 @@ interface EditTournamentDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
 }
+
+const EditTournamentDialogSchema = tournamentValidator.and(z.object({
+    id: z.uuid(),
+}))
 
 export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTournamentDialogProps) {
     const router = useRouter()
@@ -64,41 +70,34 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
         })
     )
 
-    const form = useForm({
-        defaultValues: {
+    const defaultValues: z.input<typeof EditTournamentDialogSchema> = {
             id: tournament.id,
             name: tournament.name,
             venue: tournament.venue,
             location: tournament.location,
             maxAthletes: tournament.maxAthletes,
-            startDate: tournament.startDate ? new Date(tournament.startDate) : new Date(),
-            endDate: tournament.endDate ? new Date(tournament.endDate) : new Date(),
-            status: tournament.status ?? "draft",
-        },
+            startDate: tournament.startDate ? dayjs(tournament.startDate).toDate() : dayjs().toDate(),
+            endDate: tournament.endDate ? dayjs(tournament.endDate).toDate() : dayjs().toDate(),
+            status: tournament.status,
+        }
+
+    const form = useForm({
+        defaultValues,
         validators: {
-            onChange: tournamentValidator as any,
+            onSubmit: EditTournamentDialogSchema,
         },
         onSubmit: ({ value }) => {
             updateTournament.mutate({
                 ...value,
                 // Ensure ID is passed and types align
-            } as any)
+            })
         },
     })
 
     // Reset form when tournament prop changes
     useEffect(() => {
         if (open) {
-            form.reset({
-                id: tournament.id,
-                name: tournament.name,
-                venue: tournament.venue,
-                location: tournament.location,
-                maxAthletes: tournament.maxAthletes,
-                startDate: tournament.startDate ? new Date(tournament.startDate) : new Date(),
-                endDate: tournament.endDate ? new Date(tournament.endDate) : new Date(),
-                status: tournament.status ?? "draft",
-            })
+            form.reset(defaultValues)
         }
     }, [tournament, open, form])
 
