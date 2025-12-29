@@ -151,7 +151,7 @@ export function RegistrationsDataTable() {
             cell: ({ row }) => {
                 const status = row.original.tournament.status
                 const label = TOURNAMENT_STATUS.find((s) => s.value === status)?.label ?? status
-                return <Badge variant={status === "draft" ? "outline" : "default"}>{label}</Badge>
+                return <Badge variant="default">{label}</Badge>
             },
             filterFn: (row, id, value) => {
                 return value.includes(row.getValue(id))

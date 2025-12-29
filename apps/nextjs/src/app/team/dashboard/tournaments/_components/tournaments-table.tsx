@@ -112,41 +112,41 @@ export function TournamentsDataTable() {
             },
         },
         {
-                    accessorKey: 'division',
-                    header: 'División',
-                    cell: ({ row }) => {
-                        const division = row.original.division
-                        const label = ATHLETE_DIVISION.find((d) => d.value === division)?.label ?? division
-                        return <Badge variant="secondary">{label}</Badge>
-                    },
-                    filterFn: (row, id, value) => {
-                        return value.includes(row.getValue(id))
-                    },
-                },
-                {
-                    accessorKey: 'event',
-                    header: 'Evento',
-                    cell: ({ row }) => {
-                        const event = row.original.event
-                        const label = EVENTS.find((e) => e.value === event)?.label ?? event
-                        return <Badge variant="secondary">{label}</Badge>
-                    },
-                    filterFn: (row, id, value) => {
-                        return value.includes(row.getValue(id))
-                    },
-                },
-                {
-                    accessorKey: 'equipment',
-                    header: 'Equipo',
-                    cell: ({ row }) => {
-                        const equipment = row.original.equipment
-                        const label = EQUIPMENT.find((e) => e.value === equipment)?.label ?? equipment
-                        return <Badge variant="secondary">{label}</Badge>
-                    },
-                    filterFn: (row, id, value) => {
-                        return value.includes(row.getValue(id))
-                    },
-                },
+            accessorKey: 'division',
+            header: 'División',
+            cell: ({ row }) => {
+                const division = row.original.division
+                const label = ATHLETE_DIVISION.find((d) => d.value === division)?.label ?? division
+                return <Badge variant="secondary">{label}</Badge>
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.getValue(id))
+            },
+        },
+        {
+            accessorKey: 'event',
+            header: 'Evento',
+            cell: ({ row }) => {
+                const event = row.original.event
+                const label = EVENTS.find((e) => e.value === event)?.label ?? event
+                return <Badge variant="secondary">{label}</Badge>
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.getValue(id))
+            },
+        },
+        {
+            accessorKey: 'equipment',
+            header: 'Equipo',
+            cell: ({ row }) => {
+                const equipment = row.original.equipment
+                const label = EQUIPMENT.find((e) => e.value === equipment)?.label ?? equipment
+                return <Badge variant="secondary">{label}</Badge>
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.getValue(id))
+            },
+        },
         {
             accessorKey: 'venue',
             header: 'Sede',
@@ -177,12 +177,12 @@ export function TournamentsDataTable() {
             cell: ({ row }) => {
                 const status = row.original.status
                 const label = TOURNAMENT_STATUS.find((s) => s.value === status)?.label ?? status
-                return <Badge variant={status === "draft" ? "outline" : "default"}>{label}</Badge>
+                return <Badge variant="default">{label}</Badge>
             },
             filterFn: (row, id, value) => {
                 return value.includes(row.getValue(id))
             },
-            
+
         },
         {
             id: 'actions',
@@ -220,7 +220,7 @@ export function TournamentsDataTable() {
                 <DataTableFacetedFilter
                     column={table.getColumn("status")}
                     title="Estado"
-                    options={TOURNAMENT_STATUS.filter(Tstatus => Tstatus.value !== "draft")}
+                    options={TOURNAMENT_STATUS}
                 />
             </div>
             <div className="rounded-md border bg-card">

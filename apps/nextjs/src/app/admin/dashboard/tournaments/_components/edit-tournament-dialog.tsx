@@ -39,7 +39,10 @@ import { TOURNAMENT_STATUS, ATHLETE_DIVISION, EVENTS, EQUIPMENT } from "@acme/sh
 import z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
 
-type Tournament = RouterOutputs["tournaments"]["list"][number]
+import { Switch } from "@acme/ui/switch"
+import { Label } from "@acme/ui/label"
+
+type Tournament = RouterOutputs["tournaments"]["all"][number]
 
 interface EditTournamentDialogProps {
     tournament: Tournament
@@ -49,9 +52,11 @@ interface EditTournamentDialogProps {
 
 const EditTournamentDialogSchema = tournamentValidator.and(z.object({
     id: z.uuid(),
+    propagateLogistics: z.boolean().optional(),
 }))
 
 export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTournamentDialogProps) {
+    const isChild = !!tournament.parentId
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -62,7 +67,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                 toast.success("Torneo actualizado exitosamente")
                 onOpenChange(false)
                 router.refresh()
-                await queryClient.invalidateQueries(trpc.tournaments.list.pathFilter())
+                await queryClient.invalidateQueries(trpc.tournaments.all.pathFilter())
             },
             onError: (err) => {
                 toast.error(err.message)
@@ -82,6 +87,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
         division: tournament.division as any,
         event: tournament.event as any,
         equipment: tournament.equipment as any,
+        propagateLogistics: false,
     }
 
     const form = useForm({
@@ -90,10 +96,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
             onSubmit: EditTournamentDialogSchema,
         },
         onSubmit: ({ value }) => {
-            updateTournament.mutate({
-                ...value,
-                // Ensure ID is passed and types align
-            })
+            updateTournament.mutate(value)
         },
     })
 
@@ -102,15 +105,17 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
         if (open) {
             form.reset(defaultValues)
         }
-    }, [tournament, open, form])
+    }, [tournament, open])
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
-                    <DialogTitle>Editar Torneo</DialogTitle>
+                    <DialogTitle>Editar {isChild ? 'Instancia de Modalidad' : 'Torneo Principal'}</DialogTitle>
                     <DialogDescription>
-                        Modifique los datos del torneo.
+                        {isChild
+                            ? "Los campos logísticos están bloqueados porque se heredan del torneo principal."
+                            : "Modifique los datos del torneo principal."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -130,7 +135,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                 return (
                                     <Field data-invalid={isInvalid}>
                                         <FieldContent>
-                                            <FieldLabel htmlFor={field.name}>Nombre del Torneo</FieldLabel>
+                                            <FieldLabel htmlFor={field.name}>Nombre</FieldLabel>
                                         </FieldContent>
                                         <Input
                                             id={field.name}
@@ -140,12 +145,32 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                             onChange={(e) => field.handleChange(e.target.value)}
                                             placeholder="Ej: Campeonato Nacional 2025"
                                             aria-invalid={isInvalid}
+                                            disabled={isChild}
                                         />
                                         {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                     </Field>
                                 )
                             }}
                         />
+
+                        {!isChild && (
+                            <form.Field
+                                name="propagateLogistics"
+                                children={(field) => (
+                                    <div className="flex items-center space-x-2 py-2">
+                                        <Switch
+                                            id={field.name}
+                                            checked={field.state.value}
+                                            onCheckedChange={field.handleChange}
+                                        />
+                                        <Label htmlFor={field.name} className="text-sm font-medium leading-none cursor-pointer">
+                                            Propagar cambios logísticos a todas las modalidades
+                                        </Label>
+                                    </div>
+                                )}
+                            />
+                        )}
+
                         <div className="grid grid-cols-2 gap-4">
                             <form.Field
                                 name="venue"
@@ -164,6 +189,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                                 onChange={(e) => field.handleChange(e.target.value)}
                                                 placeholder="Ej: Hotel portal del lago"
                                                 aria-invalid={isInvalid}
+                                                disabled={isChild}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                         </Field>
@@ -187,6 +213,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                                 onChange={(e) => field.handleChange(e.target.value)}
                                                 placeholder="Ej: Villa Carlos Paz, Córdoba, Argentina"
                                                 aria-invalid={isInvalid}
+                                                disabled={isChild}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                         </Field>
@@ -208,7 +235,8 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                             <DatePicker
                                                 date={field.state.value}
                                                 setDate={(date) => field.handleChange(date as Date)}
-                                                label="Seleccionar fecha inicio"
+                                                label="Seleccionar fecha"
+                                                disabled={isChild}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                         </Field>
@@ -227,7 +255,8 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                             <DatePicker
                                                 date={field.state.value}
                                                 setDate={(date) => field.handleChange(date as Date)}
-                                                label="Seleccionar fecha fin"
+                                                label="Seleccionar fecha"
+                                                disabled={isChild}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                         </Field>
@@ -308,6 +337,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                             <Select
                                                 value={field.state.value}
                                                 onValueChange={(val: any) => field.handleChange(val)}
+                                                disabled={isChild}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="División" />
@@ -335,6 +365,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                             <Select
                                                 value={field.state.value}
                                                 onValueChange={(val: any) => field.handleChange(val)}
+                                                disabled={isChild}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Evento" />
@@ -362,6 +393,7 @@ export function EditTournamentDialog({ tournament, open, onOpenChange }: EditTou
                                             <Select
                                                 value={field.state.value}
                                                 onValueChange={(val: any) => field.handleChange(val)}
+                                                disabled={isChild}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Equipamiento" />

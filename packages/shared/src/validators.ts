@@ -13,6 +13,7 @@ export const tournamentValidator = z.object({
     division: z.enum(divisionEnum.enumValues, { message: "División inválida" }),
     event: z.enum(eventEnum.enumValues, { message: "Evento inválido" }),
     equipment: z.enum(equipmentEnum.enumValues, { message: "Equipamiento inválido" }),
+    parentId: z.string().uuid().optional().nullable(),
 }).refine((data) => !data.endDate || !data.startDate || data.endDate >= data.startDate, {
     message: "La fecha de fin no puede ser anterior a la fecha de inicio",
     path: ["endDate"],

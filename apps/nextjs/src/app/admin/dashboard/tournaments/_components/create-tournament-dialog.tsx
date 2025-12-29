@@ -41,26 +41,60 @@ import * as z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
 import { ATHLETE_DIVISION, EVENTS, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 
+import { ModalitySelector, type ModalityInstance } from "./modality-selector"
+import { Badge } from "@acme/ui/badge"
+import { ScrollArea } from "@acme/ui/scroll-area"
+
+import { Label } from "@acme/ui/label"
+
 export function CreateTournamentDialog() {
     const [open, setOpen] = useState(false)
+    const [step, setStep] = useState<'root' | 'modalities'>('root')
+    const [rootTournament, setRootTournament] = useState<{ id: string, name: string } | null>(null)
+    const [instances, setInstances] = useState<ModalityInstance[]>([])
+
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
     const createTournament = useMutation(
         trpc.tournaments.create.mutationOptions({
-            onSuccess: async () => {
-                toast.success("Torneo creado exitosamente")
-                setOpen(false)
-                form.reset()
-                router.refresh()
-                await queryClient.invalidateQueries(trpc.tournaments.list.pathFilter())
+            onSuccess: async (data: any) => {
+                toast.success("Evento principal creado. Ahora define las modalidades.")
+                // Hack to access data since tRPC types might be lagging
+                const id = Array.isArray(data) ? data[0]?.id : (data as any)?.id;
+                const name = Array.isArray(data) ? data[0]?.name : (data as any)?.name;
+                setRootTournament({ id, name })
+                setStep('modalities')
+                await queryClient.invalidateQueries(trpc.tournaments.all.pathFilter())
             },
             onError: (err) => {
                 toast.error(err.message)
             },
         })
     )
+
+    const createInstances = useMutation(
+        (trpc.tournaments as any).createInstances.mutationOptions({
+            onSuccess: async () => {
+                toast.success("Modalidades generadas exitosamente")
+                setOpen(false)
+                resetAll()
+                router.refresh()
+                await queryClient.invalidateQueries(trpc.tournaments.all.pathFilter())
+            },
+            onError: (err: any) => {
+                toast.error(err.message)
+            }
+        })
+    )
+
+    const resetAll = () => {
+        setStep('root')
+        setRootTournament(null)
+        setInstances([])
+        form.reset()
+    }
 
     const defaultValues: z.input<typeof tournamentValidator> = {
         name: "",
@@ -72,7 +106,7 @@ export function CreateTournamentDialog() {
         status: "preliminary_open",
         division: "open",
         event: "full",
-        equipment: "raw",
+        equipment: "classic",
     }
 
     const form = useForm({
@@ -81,79 +115,57 @@ export function CreateTournamentDialog() {
             onSubmit: tournamentValidator,
         },
         onSubmit: ({ value }) => {
-            // Validator expects Date objects for dates, which DatePicker provides.
-            // Zod schema expects dates.
-            // However, verify if validator allows optional endDate. 
-            // The validator in shared/validators.ts showed .required({...}) which might mean all keys in object are required unless logic says otherwise?
-            // createInsertSchema usually makes nulllable columns optional. endDate is nullable in schema?
-            // Checked schema: endDate: t.timestamp(), (nullable by default in drizzle output unless .notNull())
-            // But validator.ts had .required({ ... endDate: true ... }). This overrides nullability?
-            // Wait, createInsertSchema(table).required({...}) forces them to be required in the zod schema.
-            // If so, I must provide them.
-            createTournament.mutate({
-                ...value,
-                // Ensure types match what zod expects if form state diverges
-            })
+            createTournament.mutate(value)
         },
     })
 
+    const handleGenerateInstances = () => {
+        if (!rootTournament) return
+        (createInstances.mutate as any)({
+            parentId: rootTournament.id,
+            modalities: instances
+        })
+    }
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+            setOpen(val)
+            if (!val) resetAll()
+        }}>
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
                     Crear Torneo
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
+            <DialogContent className="sm:max-w-[700px] overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
-                    <DialogTitle>Crear Nuevo Torneo</DialogTitle>
+                    <DialogTitle>{step === 'root' ? 'Crear Evento Principal' : 'Generar Modalidades'}</DialogTitle>
                     <DialogDescription>
-                        Ingrese los datos para registrar un nuevo torneo.
+                        {step === 'root'
+                            ? 'Paso 1: Define la logística general del torneo.'
+                            : `Paso 2: Selecciona las modalidades para "${rootTournament?.name}".`}
                     </DialogDescription>
                 </DialogHeader>
 
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        void form.handleSubmit()
-                    }}
-                    className="space-y-4"
-                >
-                    <FieldGroup>
-                        <form.Field
-                            name="name"
-                            children={(field) => {
-                                const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                return (
-                                    <Field data-invalid={isInvalid}>
-                                        <FieldContent>
-                                            <FieldLabel htmlFor={field.name}>Nombre del Torneo</FieldLabel>
-                                        </FieldContent>
-                                        <Input
-                                            id={field.name}
-                                            name={field.name}
-                                            value={field.state.value}
-                                            onBlur={field.handleBlur}
-                                            onChange={(e) => field.handleChange(e.target.value)}
-                                            placeholder="Ej: Campeonato Nacional 2025"
-                                            aria-invalid={isInvalid}
-                                        />
-                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                    </Field>
-                                )
-                            }}
-                        />
-                        <div className="grid grid-cols-2 gap-4">
+                {step === 'root' ? (
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            void form.handleSubmit()
+                        }}
+                        className="space-y-4"
+                    >
+                        <FieldGroup>
                             <form.Field
-                                name="venue"
+                                name="name"
                                 children={(field) => {
                                     const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                     return (
                                         <Field data-invalid={isInvalid}>
                                             <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Sede</FieldLabel>
+                                                <FieldLabel htmlFor={field.name}>Nombre del Torneo</FieldLabel>
                                             </FieldContent>
                                             <Input
                                                 id={field.name}
@@ -161,7 +173,7 @@ export function CreateTournamentDialog() {
                                                 value={field.state.value}
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
-                                                placeholder="Ej: Hotel portal del lago"
+                                                placeholder="Ej: Campeonato Nacional 2025"
                                                 aria-invalid={isInvalid}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -169,230 +181,197 @@ export function CreateTournamentDialog() {
                                     )
                                 }}
                             />
-                            <form.Field
-                                name="location"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Ubicación</FieldLabel>
-                                            </FieldContent>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                value={field.state.value}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) => field.handleChange(e.target.value)}
-                                                placeholder="Ej: Villa Carlos Paz, Córdoba, Argentina"
-                                                aria-invalid={isInvalid}
-                                            />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                        </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <form.Field
+                                    name="venue"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Sede</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    value={field.state.value}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.value)}
+                                                    placeholder="Ej: Hotel portal del lago"
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                                <form.Field
+                                    name="location"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Ubicación</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    value={field.state.value}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.value)}
+                                                    placeholder="Ej: Villa Carlos Paz, Córdoba, Argentina"
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <form.Field
-                                name="startDate"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid} className="flex flex-col">
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Fecha de Inicio</FieldLabel>
-                                            </FieldContent>
-                                            <DatePicker
-                                                date={field.state.value}
-                                                setDate={(date) => field.handleChange(date as Date)}
-                                                label="Seleccionar fecha inicio"
-                                            />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                            <form.Field
-                                name="endDate"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid} className="flex flex-col">
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Fecha de Fin</FieldLabel>
-                                            </FieldContent>
-                                            <DatePicker
-                                                date={field.state.value}
-                                                setDate={(date) => field.handleChange(date as Date)}
-                                                label="Seleccionar fecha fin"
-                                            />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                        </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <form.Field
+                                    name="startDate"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid} className="flex flex-col">
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Fecha de Inicio</FieldLabel>
+                                                </FieldContent>
+                                                <DatePicker
+                                                    date={field.state.value}
+                                                    setDate={(date) => field.handleChange(date as Date)}
+                                                    label="Seleccionar fecha inicio"
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                                <form.Field
+                                    name="endDate"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid} className="flex flex-col">
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Fecha de Fin</FieldLabel>
+                                                </FieldContent>
+                                                <DatePicker
+                                                    date={field.state.value}
+                                                    setDate={(date) => field.handleChange(date as Date)}
+                                                    label="Seleccionar fecha fin"
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <form.Field
-                                name="maxAthletes"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Max. Atletas</FieldLabel>
-                                            </FieldContent>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                type="number"
-                                                value={field.state.value ?? ""}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) => {
-                                                    const val = e.target.valueAsNumber;
-                                                    field.handleChange(isNaN(val) ? null : val)
-                                                }}
-                                                placeholder="0"
-                                                aria-invalid={isInvalid}
-                                            />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                            <form.Field
-                                name="status"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Estado</FieldLabel>
-                                            </FieldContent>
-                                            <Select
-                                                value={field.state.value}
-                                                onValueChange={(val: any) => field.handleChange(val)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccione estado" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {TOURNAMENT_STATUS.map(s => (
-                                                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                        </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <form.Field
+                                    name="maxAthletes"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Max. Atletas (Default)</FieldLabel>
+                                                </FieldContent>
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    type="number"
+                                                    value={field.state.value ?? ""}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => {
+                                                        const val = e.target.valueAsNumber;
+                                                        field.handleChange(isNaN(val) ? null : val)
+                                                    }}
+                                                    placeholder="0"
+                                                    aria-invalid={isInvalid}
+                                                />
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                                <form.Field
+                                    name="status"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Estado Inicial</FieldLabel>
+                                                </FieldContent>
+                                                <Select
+                                                    value={field.state.value}
+                                                    onValueChange={(val: any) => field.handleChange(val)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seleccione estado" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {TOURNAMENT_STATUS.map(s => (
+                                                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        )
+                                    }}
+                                />
+                            </div>
+                        </FieldGroup>
+                        <DialogFooter>
+                            <Button type="submit" disabled={createTournament.isPending}>
+                                {createTournament.isPending && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                Siguiente (Configurar Modalidades)
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                ) : (
+                    <div className="space-y-6">
+                        <ModalitySelector onGenerate={setInstances} />
 
-                        <div className="grid grid-cols-3 gap-4">
-                            <form.Field
-                                name="division"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>División</FieldLabel>
-                                            </FieldContent>
-                                            <Select
-                                                value={field.state.value}
-                                                onValueChange={(val: any) => field.handleChange(val)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="División" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {ATHLETE_DIVISION.map(d => (
-                                                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                            <form.Field
-                                name="event"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Evento</FieldLabel>
-                                            </FieldContent>
-                                            <Select
-                                                value={field.state.value}
-                                                onValueChange={(val: any) => field.handleChange(val)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Evento" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {EVENTS.map(e => (
-                                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                            <form.Field
-                                name="equipment"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Equipamiento</FieldLabel>
-                                            </FieldContent>
-                                            <Select
-                                                value={field.state.value}
-                                                onValueChange={(val: any) => field.handleChange(val)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Equipamiento" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {EQUIPMENT.map(e => (
-                                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                        </div>
+                        {instances.length > 0 && (
+                            <div className="space-y-3">
+                                <Label className="text-base font-semibold">Resumen de instancias a crear ({instances.length})</Label>
+                                <ScrollArea className="h-[200px] rounded-md border p-4">
+                                    <div className="flex flex-wrap gap-2">
+                                        {instances.map((ins, i) => (
+                                            <Badge key={i} variant="outline" className="text-xs">
+                                                {ins.equipment} - {ins.event} - {ATHLETE_DIVISION.find(d => d.value === ins.division)?.label}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+                        )}
 
-                    </FieldGroup>
-                    <DialogFooter>
-                        {
-                            env.NODE_ENV === "development" && (
-                                <Button type="button" onClick={() => console.log(form.state.errors)}>
-                                    Mostrar errores en consola
-                                </Button>
-                            )
-                        }
-                        <Button type="submit" disabled={createTournament.isPending}>
-                            {createTournament.isPending && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Crear
-                        </Button>
-                    </DialogFooter>
-                </form>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button variant="ghost" onClick={() => setStep('root')} disabled={createInstances.isPending}>
+                                Volver
+                            </Button>
+                            <Button
+                                onClick={handleGenerateInstances}
+                                disabled={createInstances.isPending || instances.length === 0}
+                            >
+                                {createInstances.isPending && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                Generar {instances.length} Modalidades
+                            </Button>
+                        </DialogFooter>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     )

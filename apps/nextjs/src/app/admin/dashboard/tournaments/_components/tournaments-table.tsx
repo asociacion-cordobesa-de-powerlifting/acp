@@ -20,6 +20,11 @@ import {
     TableHeader,
     TableRow,
 } from "@acme/ui/table"
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger
+} from "@acme/ui/collapsible"
 import { Button } from "@acme/ui/button"
 import { Input } from "@acme/ui/input"
 import {
@@ -50,8 +55,82 @@ import {
     AlertDialogTitle,
 } from "@acme/ui/alert-dialog"
 
-// Helper type for Tournament
-type Tournament = RouterOutputs["tournaments"]["list"][number]
+// Helper type for Tournament with subEvents (from all query)
+type Tournament = RouterOutputs["tournaments"]["all"][number]
+
+function TournamentRow({
+    row,
+    columns
+}: {
+    row: any,
+    columns: ColumnDef<Tournament>[]
+}) {
+    const [isOpen, setIsOpen] = useState(false)
+    const tournament = row.original as any
+    const hasSubEvents = tournament.subEvents && tournament.subEvents.length > 0
+
+    return (
+        <Collapsible
+            asChild
+            open={isOpen}
+            onOpenChange={setIsOpen}
+        >
+            <>
+                <TableRow
+                    data-state={row.getIsSelected() && "selected"}
+                    className={hasSubEvents ? "cursor-pointer" : ""}
+                    onClick={() => hasSubEvents && setIsOpen(!isOpen)}
+                >
+                    {row.getVisibleCells().map((cell: any) => (
+                        <TableCell key={cell.id}>
+                            {cell.column.id === 'name' && hasSubEvents && (
+                                <ChevronDown className={`mr-2 h-4 w-4 inline transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                    ))}
+                </TableRow>
+                {hasSubEvents && (
+                    <CollapsibleContent asChild>
+                        <TableRow className="bg-muted/50">
+                            <TableCell colSpan={columns.length} className="p-0">
+                                <div className="p-4 pl-12 space-y-2">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-sm font-semibold text-muted-foreground">Modalidades / Instancias</h4>
+                                        <Badge variant="secondary" className="text-[10px]">
+                                            {tournament.subEvents?.length} instancias
+                                        </Badge>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                        {(tournament.subEvents as any[])?.map((sub: any) => (
+                                            <div
+                                                key={sub.id}
+                                                className="flex items-center justify-between p-2 rounded-md border bg-background text-sm"
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium">{sub.equipment} - {sub.event}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {ATHLETE_DIVISION.find(d => d.value === sub.division)?.label}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant={sub.status === 'finished' ? 'secondary' : 'default'} className="text-[10px]">
+                                                        {sub.status}
+                                                    </Badge>
+                                                    <TournamentActions tournament={sub} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    </CollapsibleContent>
+                )}
+            </>
+        </Collapsible>
+    )
+}
 
 function TournamentActions({ tournament }: { tournament: Tournament }) {
     const trpc = useTRPC();
@@ -131,7 +210,12 @@ export function TournamentsDataTable() {
     const [globalFilter, setGlobalFilter] = useState("")
     const trpc = useTRPC();
 
-    const { data: tournaments = [], isLoading } = useSuspenseQuery(trpc.tournaments.all.queryOptions());
+    const { data: tournaments = [], isLoading } = useSuspenseQuery(
+        trpc.tournaments.all.queryOptions({
+            onlyRoots: true,
+            includeSubEvents: true
+        })
+    );
 
     const columns: ColumnDef<Tournament>[] = [
         {
@@ -214,7 +298,7 @@ export function TournamentsDataTable() {
             cell: ({ row }) => {
                 const status = row.original.status
                 const label = TOURNAMENT_STATUS.find((s) => s.value === status)?.label ?? status
-                return <Badge variant={status === "draft" ? "outline" : "default"}>{label}</Badge>
+                return <p>{label}</p>
             },
             filterFn: (row, id, value) => {
                 return value.includes(row.getValue(id))
@@ -288,16 +372,11 @@ export function TournamentsDataTable() {
                             </TableRow>
                         ) : table.getRowModel().rows.length ? (
                             table.getRowModel().rows.map((row) => (
-                                <TableRow
+                                <TournamentRow
                                     key={row.id}
-                                    data-state={row.getIsSelected() && "selected"}
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
+                                    row={row}
+                                    columns={columns}
+                                />
                             ))
                         ) : (
                             <TableRow>
