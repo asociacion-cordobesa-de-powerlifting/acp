@@ -183,7 +183,7 @@ export function EditRegistrationDialog({
                                                         id={field.name}
                                                         name={field.name}
                                                         type="number"
-                                                        value={field.state.value ?? ""}
+                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                         onBlur={field.handleBlur}
                                                         onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                         aria-invalid={isInvalid}
@@ -209,7 +209,7 @@ export function EditRegistrationDialog({
                                                     id={field.name}
                                                     name={field.name}
                                                     type="number"
-                                                    value={field.state.value ?? ""}
+                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                     onBlur={field.handleBlur}
                                                     onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                     aria-invalid={isInvalid}
@@ -234,7 +234,7 @@ export function EditRegistrationDialog({
                                                         id={field.name}
                                                         name={field.name}
                                                         type="number"
-                                                        value={field.state.value ?? ""}
+                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                         onBlur={field.handleBlur}
                                                         onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                         aria-invalid={isInvalid}

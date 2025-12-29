@@ -44,7 +44,7 @@ export const eventEnum = pgEnum("event", [
 ]);
 
 export const equipmentEnum = pgEnum('equipment', [
-  "raw",
+  "classic",
   "equipped"
 ])
 
@@ -88,7 +88,7 @@ export const tournament = pgTable("tournament", (t) => ({
   status: tournamentStatusEnum("status").notNull(),
   division: divisionEnum("division").notNull().default("open"),
   event: eventEnum("event").notNull().default("full"),
-  equipment: equipmentEnum("equipment").notNull().default("raw"),
+  equipment: equipmentEnum("equipment").notNull().default("classic"),
   maxAthletes: t.integer(),
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
@@ -166,3 +166,4 @@ export type DivisionEnum = typeof divisionEnum.enumValues[number]
 export type WeightClassEnum = typeof weightClassEnum.enumValues[number]
 export type EventEnum = typeof eventEnum.enumValues[number]
 export type EquipmentEnum = typeof equipmentEnum.enumValues[number]
+export type GenderEnum = typeof genderEnum.enumValues[number]

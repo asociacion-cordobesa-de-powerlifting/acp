@@ -30,7 +30,7 @@ import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS, ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS } from "@acme/shared/constants"
+import { TOURNAMENT_STATUS, ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS, ATHLETE_GENDER } from "@acme/shared/constants"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -125,6 +125,18 @@ export function RegistrationsDataTable() {
             },
         },
         {
+            id: "athleteGender",
+            header: "Género",
+            cell: ({ row }) => {
+                const genre = row.original.athlete.gender
+                const label = ATHLETE_GENDER.find((g) => g.value === genre)?.label ?? genre
+                return label
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.getValue(id))
+            },
+        },
+        {
             accessorKey: 'tournament.name',
             id: 'tournamentName', // Explicit ID for faceted filtering
             header: 'Torneo',
@@ -181,8 +193,20 @@ export function RegistrationsDataTable() {
             }
         },
         {
+            id: 'bestLifts',
+            header: "Mejores Marcas",
+            cell: ({ row }) => {
+                const athlete = row.original.athlete;
+                return (
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">{athlete.squatBestKg} / {athlete.benchBestKg} / {athlete.deadliftBestKg}</span>
+                    </div>
+                )
+            }
+        },
+        {
             accessorKey: 'squatOpenerKg',
-            header: 'Sentadilla',
+            header: 'Opener Sentadilla',
             cell: ({ row }) => {
                 const val = row.original.squatOpenerKg;
                 return val ? `${val} kg` : "-";
@@ -190,7 +214,7 @@ export function RegistrationsDataTable() {
         },
         {
             accessorKey: 'benchOpenerKg',
-            header: 'Banco',
+            header: 'Opener Banco',
             cell: ({ row }) => {
                 const val = row.original.benchOpenerKg;
                 return val ? `${val} kg` : "-";
@@ -198,7 +222,7 @@ export function RegistrationsDataTable() {
         },
         {
             accessorKey: 'deadliftOpenerKg',
-            header: 'Despegue',
+            header: 'Opener Despegue',
             cell: ({ row }) => {
                 const val = row.original.deadliftOpenerKg;
                 return val ? `${val} kg` : "-";
@@ -278,6 +302,13 @@ export function RegistrationsDataTable() {
                         column={table.getColumn("weightClass")}
                         title="Categoría"
                         options={WEIGHT_CLASSES}
+                    />
+
+                    {/* Gender Filter */}
+                    <DataTableFacetedFilter
+                        column={table.getColumn("athleteGender")}
+                        title="Género"
+                        options={ATHLETE_GENDER}
                     />
                 </div>
             </div>

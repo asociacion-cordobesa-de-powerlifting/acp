@@ -181,7 +181,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                                 id={field.name}
                                                 name={field.name}
                                                 type="number"
-                                                value={field.state.value}
+                                                value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                 placeholder="Ej: 1995"
@@ -237,7 +237,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                                     id={field.name}
                                                     name={field.name}
                                                     type="number"
-                                                    value={field.state.value}
+                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                     onBlur={field.handleBlur}
                                                     onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                     placeholder="Ej: 100"
@@ -261,7 +261,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                                     id={field.name}
                                                     name={field.name}
                                                     type="number"
-                                                    value={field.state.value}
+                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                     onBlur={field.handleBlur}
                                                     onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                     placeholder="Ej: 80"
@@ -285,7 +285,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                                     id={field.name}
                                                     name={field.name}
                                                     type="number"
-                                                    value={field.state.value}
+                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                     onBlur={field.handleBlur}
                                                     onChange={(e) => field.handleChange(e.target.valueAsNumber)}
                                                     placeholder="Ej: 120"

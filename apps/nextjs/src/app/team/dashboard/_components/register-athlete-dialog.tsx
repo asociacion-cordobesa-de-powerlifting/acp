@@ -308,7 +308,7 @@ export function RegisterAthleteToTournamentDialog({
                                                                 id={field.name}
                                                                 name={field.name}
                                                                 type="number"
-                                                                value={field.state.value ?? ""}
+                                                                value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                                 onBlur={field.handleBlur}
                                                                 onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
                                                                 aria-invalid={isInvalid}
