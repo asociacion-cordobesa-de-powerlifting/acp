@@ -76,6 +76,15 @@ export const teamData = pgTable("team_data", (t) => ({
   deletedAt: t.timestamp(), // borrado lógico
 }));
 
+export const teamDataRelations = relations(teamData, ({ one, many }) => ({
+  athletes: many(athlete),
+  registrations: many(registrations),
+  user: one(user, {
+    fields: [teamData.userId],
+    references: [user.id],
+  }),
+}));
+
 // Torneos
 export const tournament = pgTable("tournament", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
@@ -93,6 +102,22 @@ export const tournament = pgTable("tournament", (t) => ({
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(),
+  parentId: t.uuid("parent_id").references((): any => tournament.id, { onDelete: "cascade" }),
+}));
+
+export const tournamentRelations = relations(tournament, ({ one, many }) => ({
+  // Relación con el Padre
+  parentTournament: one(tournament, {
+    fields: [tournament.parentId],
+    references: [tournament.id],
+    relationName: "hierarchy",
+  }),
+  // Relación con los Hijos (sub-eventos)
+  subEvents: many(tournament, {
+    relationName: "hierarchy"
+  }),
+  // Relación con las inscripciones
+  registrations: many(registrations),
 }));
 
 // Atletas (no son usuarios)
@@ -101,7 +126,7 @@ export const athlete = pgTable("athlete", (t) => ({
   teamId: t
     .uuid()
     .notNull()
-    .references(() => teamData.id),
+    .references(() => teamData.id, { onDelete: "cascade" }),
   fullName: t.text().notNull(),
   dni: t.text().notNull(),
   birthYear: t.integer().notNull(),
@@ -115,6 +140,14 @@ export const athlete = pgTable("athlete", (t) => ({
   deadliftBestKg: t.real().notNull(),
 }));
 
+export const athleteRelations = relations(athlete, ({ one, many }) => ({
+  team: one(teamData, {
+    fields: [athlete.teamId],
+    references: [teamData.id],
+  }),
+  registrations: many(registrations),
+}));
+
 // Inscripciones (nómina preliminar)
 export const registrations = pgTable("registrations", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
@@ -122,17 +155,17 @@ export const registrations = pgTable("registrations", (t) => ({
   tournamentId: t
     .uuid()
     .notNull()
-    .references(() => tournament.id),
+    .references(() => tournament.id, { onDelete: "cascade" }),
 
   teamId: t
     .uuid()
     .notNull()
-    .references(() => teamData.id),
+    .references(() => teamData.id, { onDelete: "cascade" }),
 
   athleteId: t
     .uuid()
     .notNull()
-    .references(() => athlete.id),
+    .references(() => athlete.id, { onDelete: "cascade" }),
 
   weightClass: weightClassEnum("weight_class").notNull(),
 
@@ -155,6 +188,10 @@ export const registrationRelations = relations(registrations, ({ one, many }) =>
   tournament: one(tournament, {
     fields: [registrations.tournamentId],
     references: [tournament.id],
+  }),
+  team: one(teamData, {
+    fields: [registrations.teamId],
+    references: [teamData.id],
   }),
 }));
 
