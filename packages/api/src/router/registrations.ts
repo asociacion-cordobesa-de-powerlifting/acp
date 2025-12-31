@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure } from "../trpc";
-import { registrations, registrationStatusEnum, tournament, athlete, teamData, weightClassEnum, divisionEnum, eventEnum } from "@acme/db/schema";
+import { registrations, registrationStatusEnum, tournament, athlete, teamData, weightClassEnum, divisionEnum } from "@acme/db/schema";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { eq, and, isNull } from "@acme/db";
 import { registrationValidator } from "@acme/shared/validators";

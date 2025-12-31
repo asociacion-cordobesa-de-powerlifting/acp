@@ -1,142 +1,79 @@
-import { tournament, user } from "@acme/db/schema";
+import { tournament, user, event } from "@acme/db/schema";
 import { adminProcedure, protectedProcedure } from "../trpc";
 import { or, ne, eq, desc, and, sql, not, isNull } from "@acme/db";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
-import { tournamentValidator } from "@acme/shared/validators";
+import { tournamentValidator, eventValidator, baseEventSchema } from "@acme/shared/validators";
 import { z } from "zod";
 import { cleanAndLowercase } from '@acme/shared'
-import { dayjs } from '@acme/shared/libs'
 
 
 export const tournamentsRouter = {
 
-    all: adminProcedure
-        .input(z.object({
-            onlyRoots: z.boolean().optional().default(false),
-            includeSubEvents: z.boolean().optional().default(false),
-        }).optional())
-        .query(async ({ ctx, input }) => {
-            return ctx.db.query.tournament.findMany({
-                where: and(
-                    isNull(tournament.deletedAt),
-                    input?.onlyRoots ? isNull(tournament.parentId) : undefined
-                ),
-                orderBy: [desc(tournament.createdAt)],
-                with: input?.includeSubEvents ? { subEvents: true } : undefined,
-            });
-        }),
-
-    list: protectedProcedure
+    allEvents: adminProcedure
         .query(async ({ ctx }) => {
-            return ctx.db.query.tournament.findMany({
-                orderBy: [desc(tournament.createdAt)],
-                where: and(
-                    isNull(tournament.deletedAt),
-                    isNull(tournament.parentId),
-                    not(eq(tournament.status, 'finished'))
-                ),
-                with: { subEvents: true }
+            return ctx.db.query.event.findMany({
+                where: isNull(event.deletedAt),
+                orderBy: [desc(event.createdAt)],
+                with: { tournaments: true }
             });
         }),
 
-    create: adminProcedure
-        .input(tournamentValidator)
+    createEvent: adminProcedure
+        .input(eventValidator)
         .mutation(async ({ ctx, input }) => {
             const slug = cleanAndLowercase(input.name);
-            const existing = await ctx.db.query.tournament.findFirst({
+            const existing = await ctx.db.query.event.findFirst({
                 where: and(
-                    eq(tournament.slug, slug),
-                    isNull(tournament.deletedAt)
+                    eq(event.slug, slug),
+                    isNull(event.deletedAt)
                 )
             });
 
             if (existing) {
                 throw new TRPCError({
                     code: 'CONFLICT',
-                    message: 'Ya hay otro torneo con el mismo nombre'
+                    message: 'Ya hay otro evento con el mismo nombre'
                 });
             }
 
-            const newTournament = await ctx.db.insert(tournament).values({
+            const [newEvent] = await ctx.db.insert(event).values({
                 ...input,
                 slug,
-            });
+            }).returning();
 
-            return newTournament;
+            return newEvent;
         }),
 
-    update: adminProcedure
-        .input(tournamentValidator.and(z.object({
-            id: z.string().uuid(),
-            propagateLogistics: z.boolean().optional()
-        })))
-        .mutation(async ({ ctx, input }) => {
-            const { id, propagateLogistics, ...data } = input;
-            const slug = cleanAndLowercase(data.name);
-
-            const existing = await ctx.db.query.tournament.findFirst({
-                where: and(
-                    eq(tournament.slug, slug),
-                    ne(tournament.id, id),
-                    isNull(tournament.deletedAt)
-                )
-            });
-
-            if (existing) {
-                throw new TRPCError({
-                    code: 'CONFLICT',
-                    message: 'Ya hay otro torneo con el mismo nombre'
-                });
-            }
-
-            return await ctx.db.transaction(async (tx) => {
-                await tx.update(tournament).set({
-                    ...data,
-                    slug,
-                }).where(eq(tournament.id, id));
-
-                if (propagateLogistics) {
-                    await tx.update(tournament).set({
-                        venue: data.venue,
-                        location: data.location,
-                        startDate: data.startDate,
-                        endDate: data.endDate,
-                    }).where(eq(tournament.parentId, id));
-                }
-            });
-        }),
-
-    createInstances: adminProcedure
+    createTournaments: adminProcedure
         .input(z.object({
-            parentId: z.string().uuid(),
+            eventId: z.string().uuid(),
             modalities: z.array(z.object({
                 equipment: z.enum(['classic', 'equipped']),
-                event: z.enum(['full', 'bench']),
-                division: z.enum(['subjunior', 'junior', 'open', 'master_1', 'master_2', 'master_3', 'master_4']),
-                maxAthletes: z.number().nullable().optional(),
+                modality: z.enum(['full', 'bench']),
+                division: z.enum(['juniors', 'open', 'masters']),
             }))
         }))
         .mutation(async ({ ctx, input }) => {
-            const parent = await ctx.db.query.tournament.findFirst({
-                where: eq(tournament.id, input.parentId)
+            const targetEvent = await ctx.db.query.event.findFirst({
+                where: eq(event.id, input.eventId)
             });
 
-            if (!parent) {
+            if (!targetEvent) {
                 throw new TRPCError({
                     code: 'NOT_FOUND',
-                    message: 'Torneo padre no encontrado'
+                    message: 'Evento no encontrado'
                 });
             }
 
             return await ctx.db.transaction(async (tx) => {
                 for (const mod of input.modalities) {
-                    const name = `${parent.name} - ${mod.equipment} ${mod.event} ${mod.division}`;
-                    const slug = `${parent.slug}-${mod.equipment}-${mod.event}-${mod.division}`;
-
-                    // Check if instance already exists
+                    // Check if tournament already exists for this event
                     const existing = await tx.query.tournament.findFirst({
                         where: and(
-                            eq(tournament.slug, slug),
+                            eq(tournament.eventId, input.eventId),
+                            eq(tournament.modality, mod.modality),
+                            eq(tournament.equipment, mod.equipment),
+                            eq(tournament.division, mod.division),
                             isNull(tournament.deletedAt)
                         )
                     });
@@ -144,20 +81,87 @@ export const tournamentsRouter = {
                     if (existing) continue;
 
                     await tx.insert(tournament).values({
-                        name,
-                        slug,
-                        parentId: parent.id,
-                        venue: parent.venue,
-                        location: parent.location,
-                        startDate: parent.startDate,
-                        endDate: parent.endDate,
-                        status: parent.status,
+                        eventId: input.eventId,
                         division: mod.division,
-                        event: mod.event,
+                        modality: mod.modality,
                         equipment: mod.equipment,
-                        maxAthletes: mod.maxAthletes ?? parent.maxAthletes,
                     });
                 }
+            });
+        }),
+
+    updateEvent: adminProcedure
+        .input(baseEventSchema.extend({
+            id: z.string().uuid(),
+            propagateStatus: z.enum(['preliminary_open', 'preliminary_closed', 'finished']).optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const { id, propagateStatus, ...data } = input;
+            const slug = cleanAndLowercase(data.name);
+
+            return await ctx.db.transaction(async (tx) => {
+                const [updated] = await tx.update(event)
+                    .set({ ...data, slug })
+                    .where(eq(event.id, id))
+                    .returning();
+
+                if (propagateStatus) {
+                    await tx.update(tournament)
+                        .set({ status: propagateStatus })
+                        .where(eq(tournament.eventId, id));
+                }
+
+                return updated;
+            });
+        }),
+
+    list: protectedProcedure
+        .query(async ({ ctx }) => {
+            const data = await ctx.db.query.tournament.findMany({
+                where: isNull(tournament.deletedAt),
+                with: {
+                    event: true
+                }
+            });
+            return data.map(t => ({
+                ...t,
+                name: t.event.name,
+                venue: t.event.venue,
+                location: t.event.location,
+                startDate: t.event.startDate,
+                endDate: t.event.endDate,
+            }));
+        }),
+
+    update: adminProcedure
+        .input(z.object({
+            id: z.string().uuid(),
+            division: z.enum(['juniors', 'open', 'masters']).optional(),
+            modality: z.enum(['full', 'bench']).optional(),
+            equipment: z.enum(['classic', 'equipped']).optional(),
+            status: z.enum(['preliminary_open', 'preliminary_closed', 'finished']).optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const { id, ...data } = input;
+            const [updated] = await ctx.db.update(tournament)
+                .set(data as any)
+                .where(eq(tournament.id, id))
+                .returning();
+            return updated;
+        }),
+
+    deleteEvent: adminProcedure
+        .input(z.object({ id: z.string().uuid() }))
+        .mutation(async ({ ctx, input }) => {
+            const now = new Date();
+            await ctx.db.transaction(async (tx) => {
+                await tx.update(event)
+                    .set({ deletedAt: now })
+                    .where(eq(event.id, input.id));
+
+                await tx.update(tournament)
+                    .set({ deletedAt: now })
+                    .where(eq(tournament.eventId, input.id));
             });
         }),
 
@@ -165,15 +169,9 @@ export const tournamentsRouter = {
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
             const now = new Date();
-            await ctx.db.transaction(async (tx) => {
-                await tx.update(tournament)
-                    .set({ deletedAt: now })
-                    .where(eq(tournament.id, input.id));
-
-                await tx.update(tournament)
-                    .set({ deletedAt: now })
-                    .where(eq(tournament.parentId, input.id));
-            });
+            await ctx.db.update(tournament)
+                .set({ deletedAt: now })
+                .where(eq(tournament.id, input.id));
         }),
 
 } satisfies TRPCRouterRecord;

@@ -3,12 +3,12 @@
 import { useState } from "react"
 import { Switch } from "@acme/ui/switch"
 import { Label } from "@acme/ui/label"
-import { EQUIPMENT, EVENTS, ATHLETE_DIVISION } from "@acme/shared/constants"
+import { EQUIPMENT, MODALITIES, TOURNAMENT_DIVISION } from "@acme/shared/constants"
 import { Button } from "@acme/ui/button"
 
 export type ModalityInstance = {
     equipment: 'classic' | 'equipped'
-    event: 'full' | 'bench'
+    modality: 'full' | 'bench'
     division: string
 }
 
@@ -18,8 +18,8 @@ interface ModalitySelectorProps {
 
 export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
     const [selectedEquipments, setSelectedEquipments] = useState<string[]>(['classic'])
-    const [selectedEvents, setSelectedEvents] = useState<string[]>(['full'])
-    const [selectedDivisions, setSelectedDivisions] = useState<string[]>(ATHLETE_DIVISION.map(d => d.value))
+    const [selectedModalities, setSelectedModalities] = useState<string[]>(['full'])
+    const [selectedDivisions, setSelectedDivisions] = useState<string[]>(TOURNAMENT_DIVISION.map(d => d.value))
 
     const toggle = (list: string[], setList: (l: string[]) => void, value: string) => {
         if (list.includes(value)) {
@@ -32,11 +32,11 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
     const generate = () => {
         const instances: ModalityInstance[] = []
         for (const eq of selectedEquipments) {
-            for (const ev of selectedEvents) {
+            for (const mod of selectedModalities) {
                 for (const div of selectedDivisions) {
                     instances.push({
                         equipment: eq as any,
-                        event: ev as any,
+                        modality: mod as any,
                         division: div
                     })
                 }
@@ -64,16 +64,16 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
             </div>
 
             <div className="space-y-3">
-                <Label className="text-base font-semibold">2. Evento</Label>
+                <Label className="text-base font-semibold">2. Modalidad</Label>
                 <div className="flex flex-wrap gap-4">
-                    {EVENTS.map(e => (
-                        <div key={e.value} className="flex items-center space-x-2">
+                    {MODALITIES.map(m => (
+                        <div key={m.value} className="flex items-center space-x-2">
                             <Switch
-                                id={`ev-${e.value}`}
-                                checked={selectedEvents.includes(e.value)}
-                                onCheckedChange={() => toggle(selectedEvents, setSelectedEvents, e.value)}
+                                id={`mod-${m.value}`}
+                                checked={selectedModalities.includes(m.value)}
+                                onCheckedChange={() => toggle(selectedModalities, setSelectedModalities, m.value)}
                             />
-                            <Label htmlFor={`ev-${e.value}`}>{e.label}</Label>
+                            <Label htmlFor={`mod-${m.value}`}>{m.label}</Label>
                         </div>
                     ))}
                 </div>
@@ -82,7 +82,7 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
             <div className="space-y-3">
                 <Label className="text-base font-semibold">3. Divisiones</Label>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-                    {ATHLETE_DIVISION.map(d => (
+                    {TOURNAMENT_DIVISION.map(d => (
                         <div key={d.value} className="flex items-center space-x-2">
                             <Switch
                                 id={`div-${d.value}`}
@@ -97,7 +97,7 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
 
             <div className="flex justify-end pt-4">
                 <Button onClick={generate} variant="secondary">
-                    Generar Previsualización ({selectedEquipments.length * selectedEvents.length * selectedDivisions.length} instancias)
+                    Generar Previsualización ({selectedEquipments.length * selectedModalities.length * selectedDivisions.length} instancias)
                 </Button>
             </div>
         </div>

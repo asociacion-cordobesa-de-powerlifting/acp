@@ -24,22 +24,13 @@ import {
     FieldLabel,
 } from "@acme/ui/field"
 import { Input } from "@acme/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@acme/ui/select"
 import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
-import { tournamentValidator } from "@acme/shared/validators"
+import { eventValidator } from "@acme/shared/validators"
 import { DatePicker } from "~/app/_components/time-picker/picker"
-import { tournamentStatusEnum } from "@acme/db/schema"
-import { env } from "~/env"
 import * as z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
-import { ATHLETE_DIVISION, EVENTS, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
+import { TOURNAMENT_DIVISION } from "@acme/shared/constants"
 
 import { ModalitySelector, type ModalityInstance } from "./modality-selector"
 import { Badge } from "@acme/ui/badge"
@@ -49,24 +40,20 @@ import { Label } from "@acme/ui/label"
 
 export function CreateTournamentDialog() {
     const [open, setOpen] = useState(false)
-    const [step, setStep] = useState<'root' | 'modalities'>('root')
-    const [rootTournament, setRootTournament] = useState<{ id: string, name: string } | null>(null)
+    const [step, setStep] = useState<'event' | 'modalities'>('event')
+    const [rootEvent, setRootEvent] = useState<{ id: string, name: string } | null>(null)
     const [instances, setInstances] = useState<ModalityInstance[]>([])
 
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
-    const createTournament = useMutation(
-        trpc.tournaments.create.mutationOptions({
+    const createEvent = useMutation(
+        trpc.tournaments.createEvent.mutationOptions({
             onSuccess: async (data: any) => {
-                toast.success("Evento principal creado. Ahora define las modalidades.")
-                // Hack to access data since tRPC types might be lagging
-                const id = Array.isArray(data) ? data[0]?.id : (data as any)?.id;
-                const name = Array.isArray(data) ? data[0]?.name : (data as any)?.name;
-                setRootTournament({ id, name })
+                toast.success("Evento creado. Ahora configura las modalidades.")
+                setRootEvent({ id: data.id, name: data.name })
                 setStep('modalities')
-                await queryClient.invalidateQueries(trpc.tournaments.all.pathFilter())
             },
             onError: (err) => {
                 toast.error(err.message)
@@ -74,14 +61,13 @@ export function CreateTournamentDialog() {
         })
     )
 
-    const createInstances = useMutation(
-        (trpc.tournaments as any).createInstances.mutationOptions({
+    const createTournaments = useMutation(
+        trpc.tournaments.createTournaments.mutationOptions({
             onSuccess: async () => {
                 toast.success("Modalidades generadas exitosamente")
                 setOpen(false)
                 resetAll()
                 router.refresh()
-                await queryClient.invalidateQueries(trpc.tournaments.all.pathFilter())
             },
             onError: (err: any) => {
                 toast.error(err.message)
@@ -90,40 +76,38 @@ export function CreateTournamentDialog() {
     )
 
     const resetAll = () => {
-        setStep('root')
-        setRootTournament(null)
+        setStep('event')
+        setRootEvent(null)
         setInstances([])
         form.reset()
     }
 
-    const defaultValues: z.input<typeof tournamentValidator> = {
+    const defaultValues: z.input<typeof eventValidator> = {
         name: "",
         venue: "",
         location: "",
-        maxAthletes: 0 as number | null,
         startDate: dayjs().toDate(),
         endDate: dayjs().toDate(),
-        status: "preliminary_open",
-        division: "open",
-        event: "full",
-        equipment: "classic",
     }
 
     const form = useForm({
         defaultValues,
         validators: {
-            onSubmit: tournamentValidator,
+            onSubmit: eventValidator,
         },
         onSubmit: ({ value }) => {
-            createTournament.mutate(value)
+            createEvent.mutate(value)
         },
     })
 
     const handleGenerateInstances = () => {
-        if (!rootTournament) return
-        (createInstances.mutate as any)({
-            parentId: rootTournament.id,
-            modalities: instances
+        if (!rootEvent) return
+        createTournaments.mutate({
+            eventId: rootEvent.id,
+            modalities: instances.map(ins => ({
+                ...ins,
+                division: ins.division as any,
+            }))
         })
     }
 
@@ -135,20 +119,20 @@ export function CreateTournamentDialog() {
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    Crear Torneo
+                    Organizar evento
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[700px] overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
-                    <DialogTitle>{step === 'root' ? 'Crear Evento Principal' : 'Generar Modalidades'}</DialogTitle>
+                    <DialogTitle>{step === 'event' ? 'Crear Evento' : 'Configurar Modalidades'}</DialogTitle>
                     <DialogDescription>
-                        {step === 'root'
-                            ? 'Paso 1: Define la logística general del torneo.'
-                            : `Paso 2: Selecciona las modalidades para "${rootTournament?.name}".`}
+                        {step === 'event'
+                            ? 'Paso 1: Define los datos logísticos del evento.'
+                            : `Paso 2: Activa las modalidades competitivas para "${rootEvent?.name}".`}
                     </DialogDescription>
                 </DialogHeader>
 
-                {step === 'root' ? (
+                {step === 'event' ? (
                     <form
                         onSubmit={(e) => {
                             e.preventDefault()
@@ -165,7 +149,7 @@ export function CreateTournamentDialog() {
                                     return (
                                         <Field data-invalid={isInvalid}>
                                             <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Nombre del Torneo</FieldLabel>
+                                                <FieldLabel htmlFor={field.name}>Nombre del Evento</FieldLabel>
                                             </FieldContent>
                                             <Input
                                                 id={field.name}
@@ -270,85 +254,29 @@ export function CreateTournamentDialog() {
                                     }}
                                 />
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <form.Field
-                                    name="maxAthletes"
-                                    children={(field) => {
-                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                        return (
-                                            <Field data-invalid={isInvalid}>
-                                                <FieldContent>
-                                                    <FieldLabel htmlFor={field.name}>Max. Atletas (Default)</FieldLabel>
-                                                </FieldContent>
-                                                <Input
-                                                    id={field.name}
-                                                    name={field.name}
-                                                    type="number"
-                                                    value={field.state.value ?? ""}
-                                                    onBlur={field.handleBlur}
-                                                    onChange={(e) => {
-                                                        const val = e.target.valueAsNumber;
-                                                        field.handleChange(isNaN(val) ? null : val)
-                                                    }}
-                                                    placeholder="0"
-                                                    aria-invalid={isInvalid}
-                                                />
-                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                            </Field>
-                                        )
-                                    }}
-                                />
-                                <form.Field
-                                    name="status"
-                                    children={(field) => {
-                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                        return (
-                                            <Field data-invalid={isInvalid}>
-                                                <FieldContent>
-                                                    <FieldLabel htmlFor={field.name}>Estado Inicial</FieldLabel>
-                                                </FieldContent>
-                                                <Select
-                                                    value={field.state.value}
-                                                    onValueChange={(val: any) => field.handleChange(val)}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Seleccione estado" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {TOURNAMENT_STATUS.map(s => (
-                                                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                            </Field>
-                                        )
-                                    }}
-                                />
-                            </div>
                         </FieldGroup>
                         <DialogFooter>
-                            <Button type="submit" disabled={createTournament.isPending}>
-                                {createTournament.isPending && (
+                            <Button type="submit" disabled={createEvent.isPending}>
+                                {createEvent.isPending && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
-                                Siguiente (Configurar Modalidades)
+                                Siguiente
                             </Button>
                         </DialogFooter>
                     </form>
                 ) : (
                     <div className="space-y-6">
+
                         <ModalitySelector onGenerate={setInstances} />
 
                         {instances.length > 0 && (
                             <div className="space-y-3">
-                                <Label className="text-base font-semibold">Resumen de instancias a crear ({instances.length})</Label>
+                                <Label className="text-base font-semibold">Resumen de modalidades a activar ({instances.length})</Label>
                                 <ScrollArea className="h-[200px] rounded-md border p-4">
                                     <div className="flex flex-wrap gap-2">
                                         {instances.map((ins, i) => (
                                             <Badge key={i} variant="outline" className="text-xs">
-                                                {ins.equipment} - {ins.event} - {ATHLETE_DIVISION.find(d => d.value === ins.division)?.label}
+                                                {ins.equipment} - {ins.modality} - {TOURNAMENT_DIVISION.find(d => d.value === ins.division)?.label}
                                             </Badge>
                                         ))}
                                     </div>
@@ -357,17 +285,17 @@ export function CreateTournamentDialog() {
                         )}
 
                         <DialogFooter className="gap-2 sm:gap-0">
-                            <Button variant="ghost" onClick={() => setStep('root')} disabled={createInstances.isPending}>
+                            <Button variant="ghost" onClick={() => setStep('event')} disabled={createTournaments.isPending}>
                                 Volver
                             </Button>
                             <Button
                                 onClick={handleGenerateInstances}
-                                disabled={createInstances.isPending || instances.length === 0}
+                                disabled={createTournaments.isPending || instances.length === 0}
                             >
-                                {createInstances.isPending && (
+                                {createTournaments.isPending && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
-                                Generar {instances.length} Modalidades
+                                Activar {instances.length} Modalidades
                             </Button>
                         </DialogFooter>
                     </div>

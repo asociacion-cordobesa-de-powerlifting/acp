@@ -30,7 +30,7 @@ import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS, ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS, ATHLETE_GENDER } from "@acme/shared/constants"
+import { TOURNAMENT_STATUS, ATHLETE_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER } from "@acme/shared/constants"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -183,12 +183,12 @@ export function RegistrationsDataTable() {
             },
         },
         {
-            accessorKey: 'tournament.event',
-            id: 'event',
-            header: 'Evento',
+            accessorKey: 'tournament.modality',
+            id: 'modality',
+            header: 'Modalidad',
             cell: ({ row }) => {
-                const event = row.original.tournament.event
-                const label = EVENTS.find((e) => e.value === event)?.label ?? event
+                const modality = row.original.tournament.modality
+                const label = MODALITIES.find((e) => e.value === modality)?.label ?? modality
                 return label
             }
         },

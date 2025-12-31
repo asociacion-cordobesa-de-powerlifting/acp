@@ -16,7 +16,7 @@ export default function RegistrationsPage() {
                 description="Gestión de inscripciones del equipo"
                 actions={
                     <div className="flex gap-2 items-center">
-                        <RegisterAthelete />
+                        {/* <RegisterAthelete /> */}
                         <Link href="/team/dashboard/registrations/register-team" className={buttonVariants({ variant: "default" })}>
                             Inscribir Equipo
                         </Link>
@@ -24,7 +24,7 @@ export default function RegistrationsPage() {
                 }
             >
                 <Suspense fallback={<TableSkeleton />}>
-                    <RegistrationsDataTable />
+                    {/* <RegistrationsDataTable /> */}
                 </Suspense>
             </DashboardPageLayout>
         </HydrateClient>

@@ -36,7 +36,7 @@ import { useTRPC } from "~/trpc/react"
 import { registrationValidator } from "@acme/shared/validators"
 import { weightClassEnum, divisionEnum } from "@acme/db/schema"
 import { getEligibleDivisions, getEligibleWeightClasses } from "@acme/shared"
-import { ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS, EQUIPMENT } from "@acme/shared/constants"
+import { ATHLETE_DIVISION, WEIGHT_CLASSES, EQUIPMENT } from "@acme/shared/constants"
 
 interface RegisterAthleteToTournamentDialogProps {
     athleteId?: string;

@@ -1,4 +1,4 @@
-import type { DivisionEnum, EquipmentEnum, EventEnum, TournamentStatusEnum, WeightClassEnum, GenderEnum } from "@acme/db/schema"
+import type { DivisionEnum, EquipmentEnum, ModalityEnum, TournamentStatusEnum, WeightClassEnum, GenderEnum, TournamentDivisionEnum } from "@acme/db/schema"
 
 type Selection<Enum> = {
     label: string,
@@ -73,12 +73,18 @@ export const DIVISION_RULES = [
     { id: "master_4" as const, min: 70, max: 999, label: "Master 4" },
 ];
 
-export const EVENTS: Selection<EventEnum>[] = [
-    { label: "Full Powerlifting", value: "full" },
-    { label: "Bench Press Only", value: "bench" },
+export const MODALITIES: Selection<ModalityEnum>[] = [
+    { label: "Powerlifting", value: "full" },
+    { label: "Bench Press", value: "bench" },
 ]
 
 export const EQUIPMENT: Selection<EquipmentEnum>[] = [
     { label: "Raw", value: "classic" },
     { label: "Equipped", value: "equipped" },
+]
+
+export const TOURNAMENT_DIVISION: Selection<TournamentDivisionEnum>[] = [
+    { label: "Juniors", value: "juniors" },
+    { label: "Open", value: "open" },
+    { label: "Masters", value: "masters" },
 ]
