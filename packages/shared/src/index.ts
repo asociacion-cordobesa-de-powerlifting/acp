@@ -77,13 +77,16 @@ export const formatDate = (date?: Date) => {
 }
 
 export function cleanAndLowercase(name: string): string {
-    // Usamos una expresión regular para eliminar caracteres no deseados
-    // \W representa cualquier carácter que no sea una letra o un número
-    // El modificador 'g' se usa para hacer coincidir todos los caracteres en la cadena
-    const cleanedName = name.replace(/\W/g, '')
-
-    // Convertimos el resultado a minúsculas
-    return cleanedName.toLowerCase()
+    return name
+        .trim()
+        .toLowerCase()
+        // Reemplazar caracteres con tildes
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        // Reemplazar espacios y caracteres no alfanuméricos (excepto guiones) por guiones
+        .replace(/[^a-z0-9]+/g, '-')
+        // Eliminar guiones al principio y al final
+        .replace(/^-+|-+$/g, '');
 }
 
 export function splitName(fullName: string) {
@@ -113,6 +116,16 @@ export function splitName(fullName: string) {
 // dias a milisegundos
 export function daysToMilliseconds(days: number) {
     return days * 24 * 60 * 60 * 1000;
+}
+
+// generar un id corto aleatorio
+export function generateShortId(length = 8): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 }
 
 export * from "./utils/divisions";

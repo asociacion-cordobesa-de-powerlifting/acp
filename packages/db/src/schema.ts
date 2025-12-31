@@ -94,6 +94,7 @@ export const teamDataRelations = relations(teamData, ({ one, many }) => ({
 
 export const event = pgTable("event", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
+  shortId: t.varchar("short_id").notNull().unique(),
   name: t.text().notNull(), // Ej: "Campeonato Nacional 2026"
   slug: t.text().notNull().unique(),
   venue: t.text().notNull(),
@@ -114,6 +115,8 @@ export const eventRelations = relations(event, ({ many }) => ({
 export const tournament = pgTable("tournament", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
   eventId: t.uuid("event_id").notNull().references(() => event.id, { onDelete: "cascade" }),
+  shortId: t.varchar("short_id").notNull().unique(),
+  slug: t.text().notNull().unique(),
 
   // Atributos específicos de la modalidad
   division: tournamentDivisionEnum("division").notNull().default("open"),

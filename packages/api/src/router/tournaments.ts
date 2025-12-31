@@ -4,12 +4,12 @@ import { or, ne, eq, desc, and, sql, not, isNull } from "@acme/db";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { tournamentValidator, eventValidator, baseEventSchema } from "@acme/shared/validators";
 import { z } from "zod";
-import { cleanAndLowercase } from '@acme/shared'
+import { cleanAndLowercase, generateShortId } from '@acme/shared'
 
 
 export const tournamentsRouter = {
 
-    allEvents: adminProcedure
+    allEvents: protectedProcedure
         .query(async ({ ctx }) => {
             return ctx.db.query.event.findMany({
                 where: isNull(event.deletedAt),
@@ -39,9 +39,69 @@ export const tournamentsRouter = {
             const [newEvent] = await ctx.db.insert(event).values({
                 ...input,
                 slug,
+                shortId: generateShortId(),
             }).returning();
 
             return newEvent;
+        }),
+
+    createEventWithTournaments: adminProcedure
+        .input(z.object({
+            event: eventValidator,
+            modalities: z.array(z.object({
+                equipment: z.enum(['classic', 'equipped']),
+                modality: z.enum(['full', 'bench']),
+                division: z.enum(['juniors', 'open', 'masters']),
+            }))
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const { event: eventData, modalities } = input;
+            const eventSlug = cleanAndLowercase(eventData.name);
+
+            // Check event slug uniqueness
+            const existingEvent = await ctx.db.query.event.findFirst({
+                where: and(
+                    eq(event.slug, eventSlug),
+                    isNull(event.deletedAt)
+                )
+            });
+
+            if (existingEvent) {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: 'Ya hay otro evento con el mismo nombre y slug'
+                });
+            }
+
+            return await ctx.db.transaction(async (tx) => {
+                // 1. Create Event
+                const [newEvent] = await tx.insert(event).values({
+                    ...eventData,
+                    slug: eventSlug,
+                    shortId: generateShortId(),
+                }).returning();
+
+                if (!newEvent) {
+                    throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No se pudo crear el evento' });
+                }
+
+                // 2. Create Tournaments
+                for (const mod of modalities) {
+                    const tournamentSlug = `${eventSlug}-${mod.modality}-${mod.equipment}-${mod.division}`;
+                    const shortId = generateShortId();
+
+                    await tx.insert(tournament).values({
+                        eventId: newEvent.id,
+                        division: mod.division,
+                        modality: mod.modality,
+                        equipment: mod.equipment,
+                        slug: tournamentSlug,
+                        shortId,
+                    });
+                }
+
+                return newEvent;
+            });
         }),
 
     createTournaments: adminProcedure
@@ -66,6 +126,8 @@ export const tournamentsRouter = {
             }
 
             return await ctx.db.transaction(async (tx) => {
+                const eventSlug = targetEvent.slug;
+
                 for (const mod of input.modalities) {
                     // Check if tournament already exists for this event
                     const existing = await tx.query.tournament.findFirst({
@@ -80,11 +142,16 @@ export const tournamentsRouter = {
 
                     if (existing) continue;
 
+                    const tournamentSlug = `${eventSlug}-${mod.modality}-${mod.equipment}-${mod.division}`;
+                    const shortId = generateShortId();
+
                     await tx.insert(tournament).values({
                         eventId: input.eventId,
                         division: mod.division,
                         modality: mod.modality,
                         equipment: mod.equipment,
+                        slug: tournamentSlug,
+                        shortId,
                     });
                 }
             });
@@ -99,11 +166,39 @@ export const tournamentsRouter = {
             const { id, propagateStatus, ...data } = input;
             const slug = cleanAndLowercase(data.name);
 
+            // Check uniqueness
+            const existing = await ctx.db.query.event.findFirst({
+                where: and(
+                    eq(event.slug, slug),
+                    ne(event.id, id),
+                    isNull(event.deletedAt)
+                )
+            });
+
+            if (existing) {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: 'El nombre del evento ya está en uso'
+                });
+            }
+
             return await ctx.db.transaction(async (tx) => {
                 const [updated] = await tx.update(event)
                     .set({ ...data, slug })
                     .where(eq(event.id, id))
                     .returning();
+
+                // If slug changed, update all tournament slugs
+                const tournaments = await tx.query.tournament.findMany({
+                    where: eq(tournament.eventId, id)
+                });
+
+                for (const t of tournaments) {
+                    const newTournamentSlug = `${slug}-${t.modality}-${t.equipment}-${t.division}`;
+                    await tx.update(tournament)
+                        .set({ slug: newTournamentSlug })
+                        .where(eq(tournament.id, t.id));
+                }
 
                 if (propagateStatus) {
                     await tx.update(tournament)
@@ -143,8 +238,39 @@ export const tournamentsRouter = {
         }))
         .mutation(async ({ ctx, input }) => {
             const { id, ...data } = input;
+
+            const existingTournament = await ctx.db.query.tournament.findFirst({
+                where: eq(tournament.id, id),
+                with: { event: true }
+            });
+
+            if (!existingTournament) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Torneo no encontrado' });
+            }
+
+            let slug = existingTournament.slug;
+            if (data.division || data.modality || data.equipment) {
+                const div = data.division ?? existingTournament.division;
+                const mod = data.modality ?? existingTournament.modality;
+                const eqpt = data.equipment ?? existingTournament.equipment;
+                slug = `${existingTournament.event.slug}-${mod}-${eqpt}-${div}`;
+
+                // Check collision
+                const collision = await ctx.db.query.tournament.findFirst({
+                    where: and(
+                        eq(tournament.slug, slug),
+                        ne(tournament.id, id),
+                        isNull(tournament.deletedAt)
+                    )
+                });
+
+                if (collision) {
+                    throw new TRPCError({ code: 'CONFLICT', message: 'Ya existe una modalidad con estos mismos atributos para este evento' });
+                }
+            }
+
             const [updated] = await ctx.db.update(tournament)
-                .set(data as any)
+                .set({ ...data, slug } as any)
                 .where(eq(tournament.id, id))
                 .returning();
             return updated;

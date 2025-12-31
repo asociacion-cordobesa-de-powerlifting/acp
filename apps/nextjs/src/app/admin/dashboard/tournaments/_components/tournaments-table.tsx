@@ -43,6 +43,7 @@ import { TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, TOURNAMENT_STATUS } from "@
 import { dayjs } from "@acme/shared/libs"
 import { toast } from "@acme/ui/toast"
 import { EditEventDialog } from "./edit-event-dialog"
+import { EditTournamentStatusDialog } from "./edit-tournament-status-dialog"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -56,6 +57,31 @@ import {
 
 type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
 type Tournament = EventWithTournaments["tournaments"][number]
+
+function TournamentActions({ tournament }: { tournament: Tournament }) {
+    const [openEdit, setOpenEdit] = useState(false)
+
+    return (
+        <>
+            <EditTournamentStatusDialog
+                tournament={tournament}
+                open={openEdit}
+                onOpenChange={setOpenEdit}
+            />
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenEdit(true)
+                }}
+            >
+                <Pencil className="h-3 w-3" />
+            </Button>
+        </>
+    )
+}
 
 function EventRow({
     row,
@@ -121,6 +147,7 @@ function EventRow({
                                                     >
                                                         {statusLabel}
                                                     </Badge>
+                                                    <TournamentActions tournament={t} />
                                                 </div>
                                             </div>
                                         );

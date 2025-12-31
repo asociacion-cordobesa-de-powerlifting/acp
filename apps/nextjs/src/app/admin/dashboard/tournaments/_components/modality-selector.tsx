@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Switch } from "@acme/ui/switch"
 import { Label } from "@acme/ui/label"
 import { EQUIPMENT, MODALITIES, TOURNAMENT_DIVISION } from "@acme/shared/constants"
-import { Button } from "@acme/ui/button"
 
 export type ModalityInstance = {
     equipment: 'classic' | 'equipped'
@@ -21,15 +20,7 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
     const [selectedModalities, setSelectedModalities] = useState<string[]>(['full'])
     const [selectedDivisions, setSelectedDivisions] = useState<string[]>(TOURNAMENT_DIVISION.map(d => d.value))
 
-    const toggle = (list: string[], setList: (l: string[]) => void, value: string) => {
-        if (list.includes(value)) {
-            setList(list.filter(v => v !== value))
-        } else {
-            setList([...list, value])
-        }
-    }
-
-    const generate = () => {
+    useEffect(() => {
         const instances: ModalityInstance[] = []
         for (const eq of selectedEquipments) {
             for (const mod of selectedModalities) {
@@ -43,6 +34,14 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
             }
         }
         onGenerate(instances)
+    }, [selectedEquipments, selectedModalities, selectedDivisions])
+
+    const toggle = (list: string[], setList: (l: string[]) => void, value: string) => {
+        if (list.includes(value)) {
+            setList(list.filter(v => v !== value))
+        } else {
+            setList([...list, value])
+        }
     }
 
     return (
@@ -93,12 +92,6 @@ export function ModalitySelector({ onGenerate }: ModalitySelectorProps) {
                         </div>
                     ))}
                 </div>
-            </div>
-
-            <div className="flex justify-end pt-4">
-                <Button onClick={generate} variant="secondary">
-                    Generar Previsualización ({selectedEquipments.length * selectedModalities.length * selectedDivisions.length} instancias)
-                </Button>
             </div>
         </div>
     )
