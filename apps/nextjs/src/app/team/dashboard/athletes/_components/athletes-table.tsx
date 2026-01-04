@@ -38,7 +38,6 @@ import { DataTablePagination } from "~/app/_components/table/pagination"
 import { ATHLETE_DIVISION } from "@acme/shared/constants"
 import { getAthleteDivision } from "@acme/shared"
 import { EditAthleteDialog } from "./edit-athlete-dialog"
-import { RegisterAthleteToTournamentDialog } from "../../_components/register-athlete-dialog"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -86,11 +85,6 @@ function AthleteActions({ athlete }: { athlete: Athlete }) {
                 athlete={athlete}
                 open={showEditDialog}
                 onOpenChange={setShowEditDialog}
-            />
-            <RegisterAthleteToTournamentDialog
-                athleteId={athlete.id}
-                open={showRegisterDialog}
-                onOpenChange={setShowRegisterDialog}
             />
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>

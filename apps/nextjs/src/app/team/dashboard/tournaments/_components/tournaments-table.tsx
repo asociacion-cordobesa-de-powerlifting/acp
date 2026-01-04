@@ -40,7 +40,6 @@ import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { dayjs } from "@acme/shared/libs"
 import { EyeIcon, UserPlusIcon, UsersIcon } from "@acme/ui/icons"
-import { RegisterAthleteToTournamentDialog } from "../../_components/register-athlete-dialog"
 import { BulkRegistrationDialog } from "../../_components/bulk-registration-dialog"
 import { EventNominationDialog } from "./event-nomination-dialog"
 
@@ -66,10 +65,6 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
                     </DropdownMenuItem>
                     {tournament.status === 'preliminary_open' && (
                         <>
-                            <DropdownMenuItem onClick={() => setShowRegisterDialog(true)}>
-                                <UserPlusIcon className="mr-2 h-4 w-4" />
-                                Inscribir atleta
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setShowBulkDialog(true)}>
                                 <UsersIcon className="mr-2 h-4 w-4" />
                                 Inscripción masiva
@@ -78,12 +73,6 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
                     )}
                 </DropdownMenuContent>
             </DropdownMenu>
-
-            <RegisterAthleteToTournamentDialog
-                tournamentId={tournament.id}
-                open={showRegisterDialog}
-                onOpenChange={setShowRegisterDialog}
-            />
 
             <BulkRegistrationDialog
                 tournament={tournament}

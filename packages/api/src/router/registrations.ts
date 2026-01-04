@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { protectedProcedure } from "../trpc";
 import { registrations, tournament, athlete, teamData, weightClassEnum } from "@acme/db/schema";
-import { TRPCError } from "@trpc/server";
+import { TRPCError, TRPCRouterRecord } from "@trpc/server";
 import { eq, and, isNull, inArray } from "@acme/db";
 import { registrationValidator, updateRegistrationSchema } from "@acme/shared/validators";
 import { canAthleteParticipateIn, getEligibleWeightClasses } from "@acme/shared";
@@ -99,9 +99,9 @@ export const registrationsRouter = {
             eventId: z.string().uuid(),
             nominations: z.array(z.object({
                 athleteId: z.string().uuid(),
-                tournamentId: z.string().uuid(),
+                tournamentId: z.string().uuid(), // Base tournament ID (division correspondiente)
                 weightClass: z.enum(weightClassEnum.enumValues),
-                alsoRegisterOpen: z.boolean(),
+                divisionMode: z.enum(["division_only", "open_only", "both"]),
             }))
         }))
         .mutation(async ({ ctx, input }) => {
@@ -131,11 +131,23 @@ export const registrationsRouter = {
                 const processedRegistrationIds = new Set<string>();
 
                 for (const nom of input.nominations) {
-                    const tournamentsToSync = [nom.tournamentId];
-
-                    if (nom.alsoRegisterOpen) {
-                        const mainT = eventWithTournaments.find(t => t.id === nom.tournamentId);
-                        if (mainT && mainT.division !== 'open') {
+                    const tournamentsToSync: string[] = [];
+                    const mainT = eventWithTournaments.find(t => t.id === nom.tournamentId);
+                    
+                    if (!mainT) continue; // Skip if tournament not found
+                    
+                    if (nom.divisionMode === "open_only") {
+                        // Only register in Open division
+                        const openT = eventWithTournaments.find(t =>
+                            t.division === 'open' &&
+                            t.modality === mainT.modality &&
+                            t.equipment === mainT.equipment
+                        );
+                        if (openT) tournamentsToSync.push(openT.id);
+                    } else if (nom.divisionMode === "both") {
+                        // Register in both divisions
+                        tournamentsToSync.push(nom.tournamentId);
+                        if (mainT.division !== 'open') {
                             const openT = eventWithTournaments.find(t =>
                                 t.division === 'open' &&
                                 t.modality === mainT.modality &&
@@ -143,6 +155,9 @@ export const registrationsRouter = {
                             );
                             if (openT) tournamentsToSync.push(openT.id);
                         }
+                    } else {
+                        // division_only: only register in the main division
+                        tournamentsToSync.push(nom.tournamentId);
                     }
 
                     for (const tid of tournamentsToSync) {
@@ -220,4 +235,4 @@ export const registrationsRouter = {
             if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Inscripción no encontrada." });
             return ctx.db.update(registrations).set({ deletedAt: new Date() }).where(eq(registrations.id, input.id));
         }),
-};
+} satisfies TRPCRouterRecord;

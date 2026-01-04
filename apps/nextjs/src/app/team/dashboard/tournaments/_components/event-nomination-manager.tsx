@@ -45,11 +45,11 @@ interface EventNominationManagerProps {
 
 type NominationEntry = {
     athleteId: string
-    tournamentId: string
+    tournamentId: string // Base tournament ID (division correspondiente)
     modality: "full" | "bench"
     equipment: "classic" | "equipped"
     weightClass: string
-    alsoRegisterOpen: boolean
+    divisionMode: "division_only" | "open_only" | "both"
     isApproved: boolean
     isExisting: boolean
 }
@@ -64,8 +64,10 @@ export function EventNominationManager({
     const queryClient = useQueryClient()
 
     // Use standard query options
-    const { data: athletes = [] } = useQuery(trpc.athletes.list.queryOptions())
-    const { data: registrations = [] } = useQuery(trpc.registrations.byTeam.queryOptions())
+    const { data: athletes = [], isLoading: isLoadingAthletes } = useQuery(trpc.athletes.list.queryOptions())
+    const { data: registrations = [], isLoading: isLoadingRegistrations } = useQuery(trpc.registrations.byTeam.queryOptions())
+    
+    const isLoading = isLoadingAthletes || isLoadingRegistrations
 
     const [localNominations, setLocalNominations] = useState<Record<string, NominationEntry>>({})
     const [globalFilter, setGlobalFilter] = useState("")
@@ -87,11 +89,11 @@ export function EventNominationManager({
         if (athletes.length === 0 || registrations.length === 0) {
             return
         }
-        
+
         const tournamentIdsSet = new Set(event.tournaments.map(t => t.id))
         const initial: Record<string, NominationEntry> = {}
 
-        athletes.forEach(a => {
+        for (const a of athletes) {
             const existing = registrations.filter(r =>
                 r.athleteId === a.id &&
                 tournamentIdsSet.has(r.tournamentId) &&
@@ -101,20 +103,51 @@ export function EventNominationManager({
             if (existing.length > 0) {
                 const nonOpenReg = existing.find(r => r.tournament.division !== 'open')
                 const openReg = existing.find(r => r.tournament.division === 'open')
-                const mainReg = nonOpenReg || openReg!
+
+                // Determine division mode and base tournament ID
+                let divisionMode: "division_only" | "open_only" | "both" = "division_only"
+                let baseTournamentId: string
+                const mainReg = nonOpenReg || openReg
+
+                if (!mainReg) continue // Skip if no valid registration found
+
+                if (nonOpenReg && openReg) {
+                    divisionMode = "both"
+                    baseTournamentId = nonOpenReg.tournamentId // Use non-open as base
+                } else if (nonOpenReg) {
+                    divisionMode = "division_only"
+                    baseTournamentId = nonOpenReg.tournamentId
+                } else if (openReg) {
+                    // Only open registration - need to find the base (non-open) tournament
+                    const baseTournament = event.tournaments.find(t =>
+                        t.modality === openReg.tournament.modality &&
+                        t.equipment === openReg.tournament.equipment &&
+                        t.division !== 'open'
+                    )
+                    if (baseTournament) {
+                        divisionMode = "open_only"
+                        baseTournamentId = baseTournament.id
+                    } else {
+                        // Fallback: use open tournament ID (shouldn't happen normally)
+                        divisionMode = "division_only"
+                        baseTournamentId = openReg.tournamentId
+                    }
+                } else {
+                    continue // Skip if no valid registration found
+                }
 
                 initial[a.id] = {
                     athleteId: a.id,
-                    tournamentId: mainReg.tournamentId,
+                    tournamentId: baseTournamentId,
                     modality: mainReg.tournament.modality as any,
                     equipment: mainReg.tournament.equipment as any,
                     weightClass: mainReg.weightClass ?? "",
-                    alsoRegisterOpen: !!nonOpenReg && !!openReg,
+                    divisionMode,
                     isApproved: existing.some(r => r.status === 'approved'),
                     isExisting: true
                 }
             }
-        })
+        }
 
         setLocalNominations(prev => {
             // Only update if the content actually changed
@@ -135,7 +168,7 @@ export function EventNominationManager({
                     prevEntry.modality !== newEntry.modality ||
                     prevEntry.equipment !== newEntry.equipment ||
                     prevEntry.weightClass !== newEntry.weightClass ||
-                    prevEntry.alsoRegisterOpen !== newEntry.alsoRegisterOpen ||
+                    prevEntry.divisionMode !== newEntry.divisionMode ||
                     prevEntry.isApproved !== newEntry.isApproved ||
                     prevEntry.isExisting !== newEntry.isExisting
                 )
@@ -211,7 +244,7 @@ export function EventNominationManager({
                     modality: matched.modality,
                     equipment: matched.equipment,
                     weightClass: eligibleWeights[0] ?? "",
-                    alsoRegisterOpen: false,
+                    divisionMode: "division_only",
                     isApproved: false,
                     isExisting: false
                 }
@@ -253,7 +286,7 @@ export function EventNominationManager({
                         modality: t.modality as any,
                         equipment: t.equipment as any
                     }))
-                    
+
                     // If only modality changed, check if current equipment is compatible
                     if (updates.modality && !updates.equipment) {
                         const availableEquipment = getAvailableEquipment(plainAthlete, plainTournaments, newNom.modality)
@@ -262,7 +295,7 @@ export function EventNominationManager({
                             newNom.equipment = availableEquipment[0]
                         }
                     }
-                    
+
                     // Validate that the combination exists
                     const matched = matchTournament(plainAthlete, newNom.modality, newNom.equipment, plainTournaments)
                     if (matched) {
@@ -308,7 +341,7 @@ export function EventNominationManager({
             athleteId: n.athleteId,
             tournamentId: n.tournamentId,
             weightClass: n.weightClass as any,
-            alsoRegisterOpen: n.alsoRegisterOpen
+            divisionMode: n.divisionMode
         }))
 
         syncRegistrations.mutate({
@@ -430,13 +463,13 @@ export function EventNominationManager({
             cell: ({ row }) => {
                 const a = row.original
                 if (!a.entry) return null
-                
+
                 const availableModalities = getAvailableModalities(a.plainAthlete, a.plainTournaments)
                 const currentModality = a.entry.modality
-                
+
                 // If current modality is not available, don't show the select (shouldn't happen but safety check)
                 if (!availableModalities.includes(currentModality)) return null
-                
+
                 return (
                     <Select
                         disabled={a.entry.isApproved}
@@ -463,14 +496,14 @@ export function EventNominationManager({
             cell: ({ row }) => {
                 const a = row.original
                 if (!a.entry) return null
-                
+
                 const currentModality = a.entry.modality
                 const availableEquipment = getAvailableEquipment(a.plainAthlete, a.plainTournaments, currentModality)
                 const currentEquipment = a.entry.equipment
-                
+
                 // If current equipment is not available, don't show the select (shouldn't happen but safety check)
                 if (!availableEquipment.includes(currentEquipment)) return null
-                
+
                 return (
                     <Select
                         disabled={a.entry.isApproved}
@@ -517,31 +550,66 @@ export function EventNominationManager({
                 )
             },
         }),
-        columnHelper.accessor("entry.alsoRegisterOpen", {
-            id: "open",
-            header: "Doble Insc.",
+        columnHelper.accessor("entry.divisionMode", {
+            id: "division",
+            header: "División",
             cell: ({ row }) => {
                 const a = row.original
-                const openCounterpart = a.matched ? getOpenCounterpart(a.matched, a.plainTournaments) : undefined
+                if (!a.entry) return null
+
+                const matched = a.matched
+                if (!matched) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
+
+                const openCounterpart = getOpenCounterpart(matched, a.plainTournaments)
                 const canEnterOpenAttr = canAthleteEnterOpen(a.plainAthlete)
-                if (!openCounterpart || !canEnterOpenAttr) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
+                const hasOpenOption = !!openCounterpart && canEnterOpenAttr
+
+                // Determine available options
+                const divisionLabel = TOURNAMENT_DIVISION.find(d => d.value === matched.division)?.label ?? ""
+                const options: Array<{ value: "division_only" | "open_only" | "both", label: string }> = []
+
+                if (matched.division !== 'open') {
+                    options.push({ value: "division_only", label: `Solo ${divisionLabel}` })
+                    if (hasOpenOption) {
+                        options.push({ value: "open_only", label: "Solo Open" })
+                        options.push({ value: "both", label: "Ambas" })
+                    }
+                } else if (hasOpenOption) {
+                    options.push({ value: "open_only", label: "Solo Open" })
+                }
+
+                if (options.length === 0) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
+                if (options.length === 1) {
+                    // Only one option, show as text
+                    const singleOption = options[0]
+                    if (!singleOption) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
+                    return <span className="text-[9px] text-muted-foreground text-center">{singleOption.label}</span>
+                }
 
                 return (
-                    <div className="flex flex-col items-center gap-1 justify-center">
-                        <Switch
-                            checked={a.entry?.alsoRegisterOpen || false}
-                            onCheckedChange={(checked) => updateNomination(a.id, { alsoRegisterOpen: checked })}
-                            disabled={!a.entry || a.entry.isApproved}
-                            //@ts-ignore
-                            size="sm"
-                        />
-                        <span className="text-[8px] text-muted-foreground font-bold uppercase">Open</span>
-                    </div>
+                    <>
+                        <Select
+                            disabled={a.entry.isApproved}
+                            value={a.entry.divisionMode}
+                            onValueChange={(val) => updateNomination(a.id, { divisionMode: val as "division_only" | "open_only" | "both" })}
+                        >
+                            <SelectTrigger className="h-8 py-0 text-xs font-medium w-[100px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {options.map(opt => (
+                                    <SelectItem key={`${a.id}-${opt.value}`} value={opt.value} className="text-xs">
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </>
                 )
             }
         }),
         columnHelper.accessor("gender", { id: "gender", header: () => null, cell: () => null }),
-        columnHelper.accessor(row => row.matched?.division, { id: "division", header: () => null, cell: () => null }),
+        columnHelper.accessor(row => row.matched?.division, { id: "matchedDivision", header: () => null, cell: () => null }),
     ], [localNominations, event.tournaments, athletes])
 
     const table = useReactTable({
@@ -581,15 +649,15 @@ export function EventNominationManager({
                 <CardContent className="py-3 px-4">
                     <div className="flex items-start gap-4 flex-wrap">
                         <div className="flex items-center gap-2 min-w-0">
-                            <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                            <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                             <span className="text-sm font-semibold text-foreground">Disponible:</span>
                         </div>
-                        
+
                         {(() => {
                             const uniqueModalities = [...new Set(event.tournaments.map(t => t.modality))]
                             const uniqueEquipment = [...new Set(event.tournaments.map(t => t.equipment))]
                             const uniqueDivisions = [...new Set(event.tournaments.map(t => t.division))]
-                            
+
                             return (
                                 <div className="flex items-center gap-3 flex-wrap">
                                     {uniqueModalities.length > 0 && (
@@ -599,7 +667,7 @@ export function EventNominationManager({
                                                 {uniqueModalities.map(modality => {
                                                     const label = MODALITIES.find(m => m.value === modality)?.label ?? modality
                                                     return (
-                                                        <Badge key={modality} variant="secondary" className="text-xs py-0.5 px-2">
+                                                        <Badge key={`modality-${modality}`} variant="secondary" className="text-xs py-0.5 px-2">
                                                             {label}
                                                         </Badge>
                                                     )
@@ -607,7 +675,7 @@ export function EventNominationManager({
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {uniqueEquipment.length > 0 && (
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-xs text-muted-foreground">Equipo:</span>
@@ -615,7 +683,7 @@ export function EventNominationManager({
                                                 {uniqueEquipment.map(equipment => {
                                                     const label = EQUIPMENT.find(e => e.value === equipment)?.label ?? equipment
                                                     return (
-                                                        <Badge key={equipment} variant="secondary" className="text-xs py-0.5 px-2">
+                                                        <Badge key={`equipment-${equipment}`} variant="secondary" className="text-xs py-0.5 px-2">
                                                             {label}
                                                         </Badge>
                                                     )
@@ -623,7 +691,7 @@ export function EventNominationManager({
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {uniqueDivisions.length > 0 && (
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-xs text-muted-foreground">Divisiones:</span>
@@ -631,7 +699,7 @@ export function EventNominationManager({
                                                 {uniqueDivisions.map(division => {
                                                     const label = TOURNAMENT_DIVISION.find(d => d.value === division)?.label ?? division
                                                     return (
-                                                        <Badge key={division} variant="secondary" className="text-xs py-0.5 px-2">
+                                                        <Badge key={`division-${division}`} variant="secondary" className="text-xs py-0.5 px-2">
                                                             {label}
                                                         </Badge>
                                                     )
@@ -639,7 +707,7 @@ export function EventNominationManager({
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {event.tournaments.length === 0 && (
                                         <span className="text-xs text-muted-foreground italic">No hay torneos disponibles</span>
                                     )}
@@ -679,8 +747,8 @@ export function EventNominationManager({
                     </Select>
 
                     <Select
-                        value={(table.getColumn("division")?.getFilterValue() as string) || "all"}
-                        onValueChange={(val) => table.getColumn("division")?.setFilterValue(val === "all" ? undefined : val)}
+                        value={(table.getColumn("matchedDivision")?.getFilterValue() as string) || "all"}
+                        onValueChange={(val) => table.getColumn("matchedDivision")?.setFilterValue(val === "all" ? undefined : val)}
                     >
                         <SelectTrigger className="h-9 w-[130px] text-xs">
                             <SelectValue placeholder="División" />
@@ -740,24 +808,37 @@ export function EventNominationManager({
                             ))}
                         </thead>
                         <tbody className="divide-y bg-card">
-                            {table.getRowModel().rows.map(row => (
-                                <tr key={row.id} className={cn(
-                                    "transition-colors hover:bg-muted/30",
-                                    row.original.entry?.isApproved && "bg-muted/20"
-                                )}>
-                                    {row.getVisibleCells().map(cell => (
-                                        <td key={cell.id} className="p-3">
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                            {table.getRowModel().rows.length === 0 && (
+                            {isLoading ? (
                                 <tr>
-                                    <td colSpan={columns.length} className="h-32 text-center text-muted-foreground italic">
-                                        No se encontraron atletas con los filtros seleccionados.
+                                    <td colSpan={columns.length} className="h-64">
+                                        <div className="flex flex-col items-center justify-center gap-3 py-8">
+                                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                            <p className="text-sm text-muted-foreground">Cargando atletas...</p>
+                                        </div>
                                     </td>
                                 </tr>
+                            ) : (
+                                <>
+                                    {table.getRowModel().rows.map(row => (
+                                        <tr key={row.id} className={cn(
+                                            "transition-colors hover:bg-muted/30",
+                                            row.original.entry?.isApproved && "bg-muted/20"
+                                        )}>
+                                            {row.getVisibleCells().map(cell => (
+                                                <td key={cell.id} className="p-3">
+                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                    {table.getRowModel().rows.length === 0 && (
+                                        <tr>
+                                            <td colSpan={columns.length} className="h-32 text-center text-muted-foreground italic">
+                                                No se encontraron atletas con los filtros seleccionados.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </>
                             )}
                         </tbody>
                     </table>
