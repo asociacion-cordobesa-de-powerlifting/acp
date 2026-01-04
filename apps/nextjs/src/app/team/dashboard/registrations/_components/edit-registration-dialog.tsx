@@ -1,7 +1,5 @@
-
 "use client"
 
-import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
@@ -23,7 +21,6 @@ import {
     FieldGroup,
     FieldLabel,
 } from "@acme/ui/field"
-import { Input } from "@acme/ui/input"
 import {
     Select,
     SelectContent,
@@ -34,9 +31,8 @@ import {
 import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
 import { updateRegistrationSchema } from "@acme/shared/validators"
-import { weightClassEnum, divisionEnum } from "@acme/db/schema"
-import { getEligibleDivisions, getEligibleWeightClasses } from "@acme/shared"
-import { ATHLETE_DIVISION, WEIGHT_CLASSES, EVENTS, EQUIPMENT } from "@acme/shared/constants"
+import { getEligibleWeightClasses } from "@acme/shared"
+import { TOURNAMENT_DIVISION, WEIGHT_CLASSES, EQUIPMENT } from "@acme/shared/constants"
 import { RouterOutputs } from "@acme/api"
 
 // Helper type
@@ -76,9 +72,6 @@ export function EditRegistrationDialog({
         defaultValues: {
             id: registration.id,
             weightClass: registration.weightClass,
-            squatOpenerKg: registration.squatOpenerKg,
-            benchOpenerKg: registration.benchOpenerKg,
-            deadliftOpenerKg: registration.deadliftOpenerKg,
         },
         validators: {
             onChange: updateRegistrationSchema,
@@ -89,16 +82,14 @@ export function EditRegistrationDialog({
     })
 
     const division = registration.tournament.division;
-    const event = registration.tournament.event;
     const equipment = registration.tournament.equipment;
 
-    const divisionLabel = ATHLETE_DIVISION.find(ad => ad.value === division)?.label ?? division;
-    const eventLabel = EVENTS.find(e => e.value === event)?.label ?? event;
+    const divisionLabel = TOURNAMENT_DIVISION.find(ad => ad.value === division)?.label ?? division;
     const equipmentLabel = EQUIPMENT.find(e => e.value === equipment)?.label ?? equipment;
 
     const availableWeightClasses = !registration.athlete.gender || !division
-        ? weightClassEnum.enumValues
-        : getEligibleWeightClasses(registration.athlete.gender as "M" | "F", division);
+        ? []
+        : getEligibleWeightClasses(registration.athlete.gender as "M" | "F", registration.athlete.birthYear, division as any);
 
 
     return (
@@ -107,7 +98,7 @@ export function EditRegistrationDialog({
                 <DialogHeader>
                     <DialogTitle>Editar Inscripción</DialogTitle>
                     <DialogDescription>
-                        Actualizar datos para {registration.athlete.fullName} en {registration.tournament.name}.
+                        Actualizar datos para {registration.athlete.fullName} en {(registration.tournament as any).event.name}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -120,17 +111,13 @@ export function EditRegistrationDialog({
                     className="space-y-4"
                 >
                     <FieldGroup>
-                        <div className="grid grid-cols-3 gap-2 p-3 bg-muted/50 rounded-lg text-sm">
+                        <div className="grid grid-cols-2 gap-2 p-3 bg-muted/50 rounded-lg text-sm">
                             <div>
                                 <p className="text-muted-foreground font-medium">División</p>
                                 <p className="font-semibold">{divisionLabel}</p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground font-medium">Evento</p>
-                                <p className="font-semibold">{eventLabel}</p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground font-medium">Modalidad</p>
+                                <p className="text-muted-foreground font-medium">Equipamiento</p>
                                 <p className="font-semibold">{equipmentLabel}</p>
                             </div>
                         </div>
@@ -166,87 +153,6 @@ export function EditRegistrationDialog({
                                 )
                             }}
                         />
-
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-3 gap-4">
-                                {event === 'full' && (
-                                    <form.Field
-                                        name="squatOpenerKg"
-                                        children={(field) => {
-                                            const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                            return (
-                                                <Field data-invalid={isInvalid}>
-                                                    <FieldContent>
-                                                        <FieldLabel htmlFor={field.name}>Opener Sentadilla (Kg)</FieldLabel>
-                                                    </FieldContent>
-                                                    <Input
-                                                        id={field.name}
-                                                        name={field.name}
-                                                        type="number"
-                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
-                                                        onBlur={field.handleBlur}
-                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                        aria-invalid={isInvalid}
-                                                    />
-                                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                </Field>
-                                            )
-                                        }}
-                                    />
-                                )}
-
-                                {/* BANCO ALWAYS */}
-                                <form.Field
-                                    name="benchOpenerKg"
-                                    children={(field) => {
-                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                        return (
-                                            <Field data-invalid={isInvalid}>
-                                                <FieldContent>
-                                                    <FieldLabel htmlFor={field.name}>Opener Banco (Kg)</FieldLabel>
-                                                </FieldContent>
-                                                <Input
-                                                    id={field.name}
-                                                    name={field.name}
-                                                    type="number"
-                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
-                                                    onBlur={field.handleBlur}
-                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                    aria-invalid={isInvalid}
-                                                />
-                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                            </Field>
-                                        )
-                                    }}
-                                />
-
-                                {event === 'full' && (
-                                    <form.Field
-                                        name="deadliftOpenerKg"
-                                        children={(field) => {
-                                            const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                            return (
-                                                <Field data-invalid={isInvalid}>
-                                                    <FieldContent>
-                                                        <FieldLabel htmlFor={field.name}>Opener Despegue (Kg)</FieldLabel>
-                                                    </FieldContent>
-                                                    <Input
-                                                        id={field.name}
-                                                        name={field.name}
-                                                        type="number"
-                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
-                                                        onBlur={field.handleBlur}
-                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                        aria-invalid={isInvalid}
-                                                    />
-                                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                </Field>
-                                            )
-                                        }}
-                                    />
-                                )}
-                            </div>
-                        </div>
                     </FieldGroup>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -30,7 +30,7 @@ import { eventValidator } from "@acme/shared/validators"
 import { DatePicker } from "~/app/_components/time-picker/picker"
 import * as z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
-import { TOURNAMENT_DIVISION } from "@acme/shared/constants"
+import { EQUIPMENT, MODALITIES, TOURNAMENT_DIVISION } from "@acme/shared/constants"
 
 import { ModalitySelector, type ModalityInstance } from "./modality-selector"
 import { Badge } from "@acme/ui/badge"
@@ -284,9 +284,9 @@ export function CreateTournamentDialog() {
                                     <div className="p-3 divide-y">
                                         {instances.map((ins, i) => (
                                             <div key={i} className="py-1.5 text-xs text-muted-foreground flex items-center gap-2">
-                                                <span className="font-medium text-foreground capitalize">{ins.modality}</span>
+                                                <span className="font-medium text-foreground capitalize">{MODALITIES.find(m => m.value === ins.modality)?.label}</span>
                                                 <span>•</span>
-                                                <span className="capitalize">{ins.equipment}</span>
+                                                <span className="capitalize">{EQUIPMENT.find(e => e.value === ins.equipment)?.label}</span>
                                                 <span>•</span>
                                                 <span>{TOURNAMENT_DIVISION.find(d => d.value === ins.division)?.label}</span>
                                             </div>

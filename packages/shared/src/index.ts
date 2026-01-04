@@ -2,6 +2,12 @@ import es from 'dayjs/locale/es'
 import { dayjs } from './lib/dayjs';
 export { dayjs };
 
+export type Selection<Enum> = {
+    label: string,
+    value: Enum
+    className?: string
+}
+
 // comparar objetos de manera profunda
 export function isDeepEqualObjs(object1: Object, object2: Object) {
     const keys1 = Object.keys(object1);
@@ -128,4 +134,9 @@ export function generateShortId(length = 8): string {
     return result;
 }
 
+export function getLabelFromValue<T>(value: T, enumValues: Selection<T>[]): string {
+    return enumValues.find(v => v.value === value)?.label ?? value as string;
+}
+
+export * from "./logic/powerlifting";
 export * from "./utils/divisions";

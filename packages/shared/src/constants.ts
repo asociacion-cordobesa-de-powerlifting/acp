@@ -1,10 +1,6 @@
-import type { DivisionEnum, EquipmentEnum, ModalityEnum, TournamentStatusEnum, WeightClassEnum, GenderEnum, TournamentDivisionEnum } from "@acme/db/schema"
-
-type Selection<Enum> = {
-    label: string,
-    value: Enum
-    className?: string
-}
+import { Selection } from '.';
+import { registrationStatusEnum } from './../../db/src/schema';
+import type { DivisionEnum, EquipmentEnum, ModalityEnum, TournamentStatusEnum, WeightClassEnum, GenderEnum, TournamentDivisionEnum, RegistrationStatusEnum } from "@acme/db/schema"
 
 export const DEFAULT_USER_IMAGE = "https://i0.wp.com/www.stignatius.co.uk/wp-content/uploads/2020/10/default-user-icon.jpg?fit=415%2C415&ssl=1"
 
@@ -39,7 +35,7 @@ export const WEIGHT_CLASSES_BY_GENDER: {
     F: [
         "F_CAT43", "F_CAT47", "F_CAT52", "F_CAT57", "F_CAT63", "F_CAT69", "F_CAT76", "F_CAT84", "F_CATHW"
     ]
-} as const;
+}
 
 export const WEIGHT_CLASSES: Selection<WeightClassEnum>[] = [
     { label: "-43", value: "F_CAT43" },
@@ -87,4 +83,10 @@ export const TOURNAMENT_DIVISION: Selection<TournamentDivisionEnum>[] = [
     { label: "Juniors", value: "juniors" },
     { label: "Open", value: "open" },
     { label: "Masters", value: "masters" },
+]
+
+export const REGISTRATION_STATUS: Selection<RegistrationStatusEnum>[] = [
+    { label: "Pendiente", value: "pending" },
+    { label: "Aprobado", value: "approved" },
+    { label: "Rechazado", value: "rejected" },
 ]

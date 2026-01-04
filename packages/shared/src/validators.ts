@@ -38,15 +38,9 @@ export const registrationValidator = z.object({
     athleteId: z.uuid("Seleccione un atleta válido"),
     tournamentId: z.uuid("Seleccione un torneo válido"),
     weightClass: z.enum(weightClassEnum.enumValues, { message: "Categoría de peso inválida" }),
-    squatOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
-    benchOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
-    deadliftOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
 });
 
 export const updateRegistrationSchema = z.object({
     id: z.uuid(),
     weightClass: z.enum(weightClassEnum.enumValues, { message: "Categoría de peso inválida" }),
-    squatOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
-    benchOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
-    deadliftOpenerKg: z.number().min(0, "Debe ser mayor a 0").nullable(),
 });

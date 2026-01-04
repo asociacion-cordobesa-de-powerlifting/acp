@@ -32,11 +32,12 @@ import {
     SelectValue,
 } from "@acme/ui/select"
 import { toast } from "@acme/ui/toast"
+import { TOURNAMENT_DIVISION, WEIGHT_CLASSES, EQUIPMENT } from "@acme/shared/constants"
 import { useTRPC } from "~/trpc/react"
 import { registrationValidator } from "@acme/shared/validators"
-import { weightClassEnum, divisionEnum } from "@acme/db/schema"
-import { getEligibleDivisions, getEligibleWeightClasses } from "@acme/shared"
-import { ATHLETE_DIVISION, WEIGHT_CLASSES, EQUIPMENT } from "@acme/shared/constants"
+import { weightClassEnum } from "@acme/db/schema"
+import { getEligibleWeightClasses } from "@acme/shared"
+import { dayjs } from "@acme/shared/libs"
 
 interface RegisterAthleteToTournamentDialogProps {
     athleteId?: string;
@@ -86,9 +87,6 @@ export function RegisterAthleteToTournamentDialog({
             athleteId: athleteId ?? "",
             tournamentId: tournamentId ?? "",
             weightClass: undefined as any,
-            squatOpenerKg: 0 as number | null,
-            benchOpenerKg: 0 as number | null,
-            deadliftOpenerKg: 0 as number | null,
         },
         validators: {
             onChange: registrationValidator,
@@ -190,32 +188,26 @@ export function RegisterAthleteToTournamentDialog({
                                 const selectedAthlete = athletes?.find((a: any) => a.id === athleteId);
                                 const selectedTournament = tournaments?.find((t: any) => t.id === tournamentId);
 
-                                const division = selectedTournament?.division;
-                                const event = selectedTournament?.event;
-                                const equipment = selectedTournament?.equipment;
+                                const division = (selectedTournament as any)?.division;
+                                const equipment = (selectedTournament as any)?.equipment;
 
-                                const divisionLabel = ATHLETE_DIVISION.find(ad => ad.value === division)?.label ?? division;
-                                const eventLabel = EVENTS.find(e => e.value === event)?.label ?? event;
+                                const divisionLabel = TOURNAMENT_DIVISION.find(ad => ad.value === division)?.label ?? division;
                                 const equipmentLabel = EQUIPMENT.find(e => e.value === equipment)?.label ?? equipment;
 
                                 const availableWeightClasses = !selectedAthlete?.gender || !division
-                                    ? weightClassEnum.enumValues
-                                    : getEligibleWeightClasses(selectedAthlete.gender as "M" | "F", division);
+                                    ? []
+                                    : getEligibleWeightClasses(selectedAthlete.gender as "M" | "F", selectedAthlete.birthYear, division as any);
 
                                 return (
                                     <>
                                         {selectedTournament && (
-                                            <div className="grid grid-cols-3 gap-2 p-3 bg-muted/50 rounded-lg text-sm mb-4">
+                                            <div className="grid grid-cols-2 gap-2 p-3 bg-muted/50 rounded-lg text-sm mb-4">
                                                 <div>
                                                     <p className="text-muted-foreground font-medium">División</p>
                                                     <p className="font-semibold">{divisionLabel}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-muted-foreground font-medium">Evento</p>
-                                                    <p className="font-semibold">{eventLabel}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-muted-foreground font-medium">Modalidad</p>
+                                                    <p className="text-muted-foreground font-medium">Equipamiento</p>
                                                     <p className="font-semibold">{equipmentLabel}</p>
                                                 </div>
                                             </div>
@@ -256,102 +248,6 @@ export function RegisterAthleteToTournamentDialog({
                                 )
                             }}
                         />
-
-                        {/* OPENERS */}
-                        <form.Subscribe
-                            selector={(state) => [state.values.tournamentId]}
-                            children={([tournamentId]) => {
-                                const selectedTournament = tournaments?.find((t: any) => t.id === tournamentId);
-                                const event = selectedTournament?.event;
-
-                                return (
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-3 gap-4">
-                                            {/* SQUAT - Only if Full */}
-                                            {event === 'full' && (
-                                                <form.Field
-                                                    name="squatOpenerKg"
-                                                    children={(field) => {
-                                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                                        return (
-                                                            <Field data-invalid={isInvalid}>
-                                                                <FieldContent>
-                                                                    <FieldLabel htmlFor={field.name}>Opener Sentadilla (Kg)</FieldLabel>
-                                                                </FieldContent>
-                                                                <Input
-                                                                    id={field.name}
-                                                                    name={field.name}
-                                                                    type="number"
-                                                                    value={field.state.value ?? ""}
-                                                                    onBlur={field.handleBlur}
-                                                                    onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
-                                                                    aria-invalid={isInvalid}
-                                                                />
-                                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                            </Field>
-                                                        )
-                                                    }}
-                                                />
-                                            )}
-
-                                            {/* BENCH - Always visible */}
-                                            <form.Field
-                                                name="benchOpenerKg"
-                                                children={(field) => {
-                                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                                    return (
-                                                        <Field data-invalid={isInvalid}>
-                                                            <FieldContent>
-                                                                <FieldLabel htmlFor={field.name}>Opener Banco (Kg)</FieldLabel>
-                                                            </FieldContent>
-                                                            <Input
-                                                                id={field.name}
-                                                                name={field.name}
-                                                                type="number"
-                                                                value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
-                                                                onBlur={field.handleBlur}
-                                                                onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
-                                                                aria-invalid={isInvalid}
-                                                            />
-                                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                        </Field>
-                                                    )
-                                                }}
-                                            />
-
-                                            {/* DEADLIFT - Only if Full */}
-                                            {event === 'full' && (
-                                                <form.Field
-                                                    name="deadliftOpenerKg"
-                                                    children={(field) => {
-                                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                                        return (
-                                                            <Field data-invalid={isInvalid}>
-                                                                <FieldContent>
-                                                                    <FieldLabel htmlFor={field.name}>Opener Despegue (Kg)</FieldLabel>
-                                                                </FieldContent>
-                                                                <Input
-                                                                    id={field.name}
-                                                                    name={field.name}
-                                                                    type="number"
-                                                                    value={field.state.value ?? ""}
-                                                                    onBlur={field.handleBlur}
-                                                                    onChange={(e) => field.handleChange(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
-                                                                    aria-invalid={isInvalid}
-                                                                />
-                                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                                            </Field>
-                                                        )
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                )
-                            }}
-                        />
-
-
                     </FieldGroup>
                     <DialogFooter>
                         <Button type="submit" disabled={createRegistration.isPending}>

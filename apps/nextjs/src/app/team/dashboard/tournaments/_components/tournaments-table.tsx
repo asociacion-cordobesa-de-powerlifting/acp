@@ -9,7 +9,6 @@ import {
     getSortedRowModel,
     getFilteredRowModel,
     type SortingState,
-    type ColumnFiltersState,
 } from "@tanstack/react-table"
 import { useState } from "react"
 import {
@@ -23,7 +22,6 @@ import {
 import {
     Collapsible,
     CollapsibleContent,
-    CollapsibleTrigger
 } from "@acme/ui/collapsible"
 import { Button } from "@acme/ui/button"
 import { Input } from "@acme/ui/input"
@@ -34,21 +32,24 @@ import {
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
 import { ChevronDown, MoreHorizontal, Calendar, MapPin } from "lucide-react"
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import { useSuspenseQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { dayjs } from "@acme/shared/libs"
-import { EyeIcon, UserPlusIcon } from "@acme/ui/icons"
+import { EyeIcon, UserPlusIcon, UsersIcon } from "@acme/ui/icons"
 import { RegisterAthleteToTournamentDialog } from "../../_components/register-athlete-dialog"
+import { BulkRegistrationDialog } from "../../_components/bulk-registration-dialog"
+import { EventNominationDialog } from "./event-nomination-dialog"
 
 type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
 type Tournament = EventWithTournaments["tournaments"][number]
 
 function TournamentActions({ tournament }: { tournament: Tournament }) {
     const [showRegisterDialog, setShowRegisterDialog] = useState(false)
+    const [showBulkDialog, setShowBulkDialog] = useState(false)
 
     return (
         <>
@@ -64,10 +65,16 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
                         Ver inscriptos
                     </DropdownMenuItem>
                     {tournament.status === 'preliminary_open' && (
-                        <DropdownMenuItem onClick={() => setShowRegisterDialog(true)}>
-                            <UserPlusIcon className="mr-2 h-4 w-4" />
-                            Inscribir atleta
-                        </DropdownMenuItem>
+                        <>
+                            <DropdownMenuItem onClick={() => setShowRegisterDialog(true)}>
+                                <UserPlusIcon className="mr-2 h-4 w-4" />
+                                Inscribir atleta
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowBulkDialog(true)}>
+                                <UsersIcon className="mr-2 h-4 w-4" />
+                                Inscripción masiva
+                            </DropdownMenuItem>
+                        </>
                     )}
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -76,6 +83,12 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
                 tournamentId={tournament.id}
                 open={showRegisterDialog}
                 onOpenChange={setShowRegisterDialog}
+            />
+
+            <BulkRegistrationDialog
+                tournament={tournament}
+                open={showBulkDialog}
+                onOpenChange={setShowBulkDialog}
             />
         </>
     )
@@ -89,74 +102,98 @@ function EventRow({
     columns: ColumnDef<EventWithTournaments>[]
 }) {
     const [isOpen, setIsOpen] = useState(false)
+    const [showNomination, setShowNomination] = useState(false)
     const event = row.original as EventWithTournaments
     const hasTournaments = event.tournaments && event.tournaments.length > 0
 
     return (
-        <Collapsible
-            asChild
-            open={isOpen}
-            onOpenChange={setIsOpen}
-        >
-            <TableBody className="[&_tr:last-child]:border-b">
-                <TableRow
-                    data-state={row.getIsSelected() && "selected"}
-                    className={hasTournaments ? "cursor-pointer" : ""}
-                    onClick={() => hasTournaments && setIsOpen(!isOpen)}
-                >
-                    {row.getVisibleCells().map((cell: any) => (
-                        <TableCell key={cell.id}>
-                            {cell.column.id === 'name' && hasTournaments && (
-                                <ChevronDown className={`mr-2 h-4 w-4 inline transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                            )}
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                    ))}
-                </TableRow>
-                {hasTournaments && (
-                    <CollapsibleContent asChild>
-                        <TableRow className="bg-muted/50">
-                            <TableCell colSpan={columns.length} className="p-0 border-b-0">
-                                <div className="px-12 py-2 space-y-1">
-                                    {event.tournaments.map((t) => {
-                                        const modalityLabel = MODALITIES.find(m => m.value === t.modality)?.label ?? t.modality;
-                                        const equipmentLabel = EQUIPMENT.find(e => e.value === t.equipment)?.label ?? t.equipment;
-                                        const divisionLabel = TOURNAMENT_DIVISION.find(d => d.value === t.division)?.label ?? t.division;
-                                        const statusLabel = TOURNAMENT_STATUS.find(s => s.value === t.status)?.label ?? t.status;
-
-                                        return (
-                                            <div
-                                                key={t.id}
-                                                className="flex items-center justify-between py-1 border-b border-dashed last:border-0"
-                                            >
-                                                <div className="flex items-center gap-2 text-[11px] font-medium">
-                                                    <span>{event.name}</span>
-                                                    <span className="text-muted-foreground">-</span>
-                                                    <span>{modalityLabel}</span>
-                                                    <span className="text-muted-foreground">•</span>
-                                                    <span>{equipmentLabel}</span>
-                                                    <span className="text-muted-foreground">•</span>
-                                                    <span>{divisionLabel}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge
-                                                        variant={t.status === 'finished' ? 'secondary' : t.status === "preliminary_closed" ? "accent" : "default"}
-                                                        className="text-[9px] h-4 px-1.5 uppercase tracking-wider"
-                                                    >
-                                                        {statusLabel}
-                                                    </Badge>
-                                                    <TournamentActions tournament={t} />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+        <>
+            <Collapsible
+                asChild
+                open={isOpen}
+                onOpenChange={setIsOpen}
+            >
+                <TableBody className="[&_tr:last-child]:border-b">
+                    <TableRow
+                        data-state={row.getIsSelected() && "selected"}
+                        className={hasTournaments ? "cursor-pointer" : ""}
+                        onClick={() => hasTournaments && setIsOpen(!isOpen)}
+                    >
+                        {row.getVisibleCells().map((cell: any) => (
+                            <TableCell key={cell.id}>
+                                {cell.column.id === 'name' && (
+                                    <div className="flex items-center gap-2">
+                                        {hasTournaments && (
+                                            <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                                        )}
+                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        <Button
+                                            variant="outline"
+                                            className="h-6 text-[9px] gap-1 px-1.5 ml-2"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowNomination(true);
+                                            }}
+                                        >
+                                            <UsersIcon className="h-3 w-3" />
+                                            Nómina
+                                        </Button>
+                                    </div>
+                                )}
+                                {cell.column.id !== 'name' && flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
-                        </TableRow>
-                    </CollapsibleContent>
-                )}
-            </TableBody>
-        </Collapsible>
+                        ))}
+                    </TableRow>
+                    {hasTournaments && (
+                        <CollapsibleContent asChild>
+                            <TableRow className="bg-muted/50">
+                                <TableCell colSpan={columns.length} className="p-0 border-b-0">
+                                    <div className="px-12 py-2 space-y-1">
+                                        {event.tournaments.map((t) => {
+                                            const modalityLabel = MODALITIES.find(m => m.value === t.modality)?.label ?? t.modality;
+                                            const equipmentLabel = EQUIPMENT.find(e => e.value === t.equipment)?.label ?? t.equipment;
+                                            const divisionLabel = TOURNAMENT_DIVISION.find(d => d.value === t.division)?.label ?? t.division;
+                                            const statusLabel = TOURNAMENT_STATUS.find(s => s.value === t.status)?.label ?? t.status;
+
+                                            return (
+                                                <div
+                                                    key={t.id}
+                                                    className="flex items-center justify-between py-1 border-b border-dashed last:border-0"
+                                                >
+                                                    <div className="flex items-center gap-2 text-[11px] font-medium">
+                                                        <span>{event.name}</span>
+                                                        <span className="text-muted-foreground">-</span>
+                                                        <span>{modalityLabel}</span>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        <span>{equipmentLabel}</span>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        <span>{divisionLabel}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge
+                                                            variant={t.status === 'finished' ? 'secondary' : t.status === "preliminary_closed" ? "accent" : "default"}
+                                                            className="text-[9px] h-4 px-1.5 uppercase tracking-wider"
+                                                        >
+                                                            {statusLabel}
+                                                        </Badge>
+                                                        <TournamentActions tournament={t} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </CollapsibleContent>
+                    )}
+                </TableBody>
+            </Collapsible>
+            <EventNominationDialog
+                event={event}
+                open={showNomination}
+                onOpenChange={setShowNomination}
+            />
+        </>
     )
 }
 
@@ -172,7 +209,7 @@ export function TournamentsDataTable() {
     const columns: ColumnDef<EventWithTournaments>[] = [
         {
             accessorKey: 'name',
-            header: 'Nombre del Evento',
+            header: 'Evento',
             cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>
         },
         {
@@ -225,9 +262,9 @@ export function TournamentsDataTable() {
                     className="max-w-sm"
                 />
             </div>
-            <div className="rounded-md border bg-card">
+            <div className="rounded-md border bg-card overflow-hidden">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/50">
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (

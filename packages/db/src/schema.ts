@@ -186,10 +186,6 @@ export const registrations = pgTable("registrations", (t) => ({
 
   weightClass: weightClassEnum("weight_class").notNull(),
 
-  squatOpenerKg: t.real(),
-  benchOpenerKg: t.real(),
-  deadliftOpenerKg: t.real(),
-
   status: registrationStatusEnum("status").notNull(),
 
   createdAt: t.timestamp().defaultNow().notNull(),
@@ -222,3 +218,4 @@ export type WeightClassEnum = typeof weightClassEnum.enumValues[number]
 export type ModalityEnum = typeof modalityEnum.enumValues[number]
 export type EquipmentEnum = typeof equipmentEnum.enumValues[number]
 export type GenderEnum = typeof genderEnum.enumValues[number]
+export type RegistrationStatusEnum = typeof registrationStatusEnum.enumValues[number]

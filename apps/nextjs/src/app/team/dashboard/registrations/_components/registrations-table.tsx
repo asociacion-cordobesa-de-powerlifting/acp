@@ -30,7 +30,7 @@ import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS, ATHLETE_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER } from "@acme/shared/constants"
+import { TOURNAMENT_STATUS, TOURNAMENT_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER, REGISTRATION_STATUS } from "@acme/shared/constants"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -39,6 +39,7 @@ import {
 } from "@acme/ui/dropdown-menu"
 import { toast } from "@acme/ui/toast"
 import { EditRegistrationDialog } from "./edit-registration-dialog"
+import { getLabelFromValue } from "@acme/shared"
 
 // Helper type for Registration with relations
 type Registration = RouterOutputs["registrations"]["byTeam"][number]
@@ -125,23 +126,24 @@ export function RegistrationsDataTable() {
             },
         },
         {
+            accessorKey: 'tournament.event.name',
+            id: 'tournamentName', // Explicit ID for faceted filtering
+            header: 'Torneo',
+            filterFn: (row, id, value) => {
+                return value.includes(row.original.tournament.event.name)
+            },
+        },
+        {
             id: "athleteGender",
             header: "Género",
             cell: ({ row }) => {
                 const genre = row.original.athlete.gender
-                const label = ATHLETE_GENDER.find((g) => g.value === genre)?.label ?? genre
+                const label = getLabelFromValue(genre, ATHLETE_GENDER)
                 return label
             },
             filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
-            },
-        },
-        {
-            accessorKey: 'tournament.name',
-            id: 'tournamentName', // Explicit ID for faceted filtering
-            header: 'Torneo',
-            filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
+                const genre = row.original.athlete.gender
+                return value.includes(genre)
             },
         },
         {
@@ -150,11 +152,11 @@ export function RegistrationsDataTable() {
             header: 'Estado Torneo',
             cell: ({ row }) => {
                 const status = row.original.tournament.status
-                const label = TOURNAMENT_STATUS.find((s) => s.value === status)?.label ?? status
+                const label = getLabelFromValue(status, TOURNAMENT_STATUS)
                 return <Badge variant="default">{label}</Badge>
             },
             filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
+                return value.includes(row.original.tournament.status)
             },
         },
         {
@@ -163,69 +165,32 @@ export function RegistrationsDataTable() {
             header: 'División',
             cell: ({ row }) => {
                 const division = row.original.tournament.division
-                const label = ATHLETE_DIVISION.find((d) => d.value === division)?.label ?? division
+                const label = getLabelFromValue(division, TOURNAMENT_DIVISION)
                 return label
             },
             filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
+                return value.includes(row.original.tournament.division)
             },
         },
         {
             accessorKey: 'weightClass',
             header: 'Categoría',
             cell: ({ row }) => {
-                const wc = row.original.weightClass
-                const label = WEIGHT_CLASSES.find((w) => w.value === wc)?.label ?? wc
+                const weightClass = row.original.weightClass
+                const label = getLabelFromValue(weightClass, WEIGHT_CLASSES)
                 return label
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
             },
         },
         {
-            accessorKey: 'tournament.modality',
-            id: 'modality',
+            accessorKey: 'modality',
             header: 'Modalidad',
             cell: ({ row }) => {
                 const modality = row.original.tournament.modality
-                const label = MODALITIES.find((e) => e.value === modality)?.label ?? modality
+                const label = getLabelFromValue(modality, MODALITIES)
                 return label
-            }
-        },
-        {
-            id: 'bestLifts',
-            header: "Mejores Marcas",
-            cell: ({ row }) => {
-                const athlete = row.original.athlete;
-                return (
-                    <div className="flex items-center gap-2">
-                        <span className="font-medium">{athlete.squatBestKg} / {athlete.benchBestKg} / {athlete.deadliftBestKg}</span>
-                    </div>
-                )
-            }
-        },
-        {
-            accessorKey: 'squatOpenerKg',
-            header: 'Opener Sentadilla',
-            cell: ({ row }) => {
-                const val = row.original.squatOpenerKg;
-                return val ? `${val} kg` : "-";
             },
-        },
-        {
-            accessorKey: 'benchOpenerKg',
-            header: 'Opener Banco',
-            cell: ({ row }) => {
-                const val = row.original.benchOpenerKg;
-                return val ? `${val} kg` : "-";
-            },
-        },
-        {
-            accessorKey: 'deadliftOpenerKg',
-            header: 'Opener Despegue',
-            cell: ({ row }) => {
-                const val = row.original.deadliftOpenerKg;
-                return val ? `${val} kg` : "-";
+            filterFn: (row, id, value) => {
+                return value.includes(row.original.tournament.modality)
             },
         },
         {
@@ -233,7 +198,7 @@ export function RegistrationsDataTable() {
             header: 'Estado Insc.',
             cell: ({ row }) => {
                 const status = row.original.status;
-                return <Badge variant={status === "pending" ? "secondary" : "default"}>{status}</Badge>
+                return <Badge variant={status === "pending" ? "secondary" : "default"}>{getLabelFromValue(status, REGISTRATION_STATUS)}</Badge>
             }
         },
         {
@@ -260,7 +225,7 @@ export function RegistrationsDataTable() {
     })
 
     // Extract unique tournaments for filter options
-    const uniqueTournaments = Array.from(new Set(registrations.map(r => r.tournament.name)))
+    const uniqueTournaments = Array.from(new Set(registrations.map(r => r.tournament.event.name)))
         .map(name => ({ label: name, value: name }))
         .sort((a, b) => a.label.localeCompare(b.label));
 
@@ -283,6 +248,13 @@ export function RegistrationsDataTable() {
                         options={uniqueTournaments}
                     />}
 
+                    {/* Gender Filter */}
+                    <DataTableFacetedFilter
+                        column={table.getColumn("athleteGender")}
+                        title="Género"
+                        options={ATHLETE_GENDER}
+                    />
+
                     {/* Status Filter */}
                     <DataTableFacetedFilter
                         column={table.getColumn("tournamentStatus")}
@@ -294,7 +266,7 @@ export function RegistrationsDataTable() {
                     <DataTableFacetedFilter
                         column={table.getColumn("division")}
                         title="División"
-                        options={ATHLETE_DIVISION}
+                        options={TOURNAMENT_DIVISION}
                     />
 
                     {/* Weight Class Filter */}
@@ -304,11 +276,11 @@ export function RegistrationsDataTable() {
                         options={WEIGHT_CLASSES}
                     />
 
-                    {/* Gender Filter */}
+                    {/* Modality Filter */}
                     <DataTableFacetedFilter
-                        column={table.getColumn("athleteGender")}
-                        title="Género"
-                        options={ATHLETE_GENDER}
+                        column={table.getColumn("modality")}
+                        title="Modalidad"
+                        options={MODALITIES}
                     />
                 </div>
             </div>

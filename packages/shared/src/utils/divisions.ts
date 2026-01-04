@@ -44,26 +44,29 @@ export function getEligibleDivisions(birthYear: number): string[] {
     return divisions;
 }
 
-export function getEligibleWeightClasses(gender: "M" | "F", division?: string): string[] {
-    const weights = gender === "M"
-        ? [
-            "M_CAT53", "M_CAT59", "M_CAT66", "M_CAT74", "M_CAT83",
-            "M_CAT93", "M_CAT105", "M_CAT120", "M_CATHW"
-        ]
-        : [
-            "F_CAT43", "F_CAT47", "F_CAT52", "F_CAT57", "F_CAT63", "F_CAT69",
-            "F_CAT76", "F_CAT84", "F_CATHW"
-        ];
+export function canAthleteParticipateIn(
+    birthYear: number,
+    tournamentDivision: "juniors" | "open" | "masters"
+): boolean {
+    const currentYear = dayjs().year();
+    const age = currentYear - birthYear;
 
-    // Filter restricted classes logic
-    // M_CAT53 and F_CAT43 are ONLY available for SubJunior and Junior divisions.
-    // If division is NOT subjunior or junior, remove them.
-    if (division) {
-        const isSubJuniorOrJunior = division === "subjunior" || division === "junior";
-        if (!isSubJuniorOrJunior) {
-            return weights.filter(w => w !== "M_CAT53" && w !== "F_CAT43");
-        }
+    if (tournamentDivision === "juniors") {
+        // Only Subjuniors (14-18) and Juniors (19-23)
+        return age >= 14 && age <= 23;
     }
 
-    return weights;
+    if (tournamentDivision === "masters") {
+        // Only Masters (40+)
+        return age >= 40;
+    }
+
+    if (tournamentDivision === "open") {
+        // Any athlete EXCEPT Subjuniors (14-18)
+        // Juniors (>= 19), Open-aged, and Masters can enter.
+        return age >= 19;
+    }
+
+    return false;
 }
+

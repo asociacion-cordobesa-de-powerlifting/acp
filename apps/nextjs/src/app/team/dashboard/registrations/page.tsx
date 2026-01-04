@@ -24,7 +24,7 @@ export default function RegistrationsPage() {
                 }
             >
                 <Suspense fallback={<TableSkeleton />}>
-                    {/* <RegistrationsDataTable /> */}
+                    <RegistrationsDataTable />
                 </Suspense>
             </DashboardPageLayout>
         </HydrateClient>
