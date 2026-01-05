@@ -222,7 +222,7 @@ function EventActions({ event }: { event: EventWithTournaments }) {
                     <DropdownMenuItem
                         onClick={(e) => {
                             e.stopPropagation()
-                            router.push(`/admin/dashboard/registrations/events/${event.id}`)
+                            router.push(`/admin/dashboard/registrations?eventId=${event.id}`)
                         }}
                     >
                         <Users className="mr-2 h-4 w-4" />

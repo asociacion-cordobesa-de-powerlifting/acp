@@ -12,7 +12,7 @@ import {
     type ColumnFiltersState,
     type RowSelectionState,
 } from "@tanstack/react-table"
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
     Table,
     TableBody,
@@ -24,7 +24,7 @@ import {
 import { Button } from "@acme/ui/button"
 import { Input } from "@acme/ui/input"
 import { ChevronDown, MoreHorizontal } from "lucide-react"
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useSuspenseQuery, useQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
@@ -33,16 +33,24 @@ import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_STATUS, TOURNAMENT_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER, REGISTRATION_STATUS, ATHLETE_DIVISION } from "@acme/shared/constants"
 import { getLabelFromValue, mapTournamentDivisionToAthleteDivision } from "@acme/shared"
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@acme/ui/select"
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
+import { useSearchParams, useRouter } from "next/navigation"
 import { UpdateRegistrationStatusDialog } from "./update-registration-status-dialog"
 import { BulkUpdateStatusDialog } from "./bulk-update-status-dialog"
 
 // Helper type for Registration with relations
-type Registration = RouterOutputs["registrations"]["byEvent"][number]
+type Registration = RouterOutputs["registrations"]["all"][number]
 
 // Checkbox component for row selection
 function IndeterminateCheckbox({
@@ -68,7 +76,7 @@ function IndeterminateCheckbox({
     )
 }
 
-function RegistrationActions({ registration, eventId }: { registration: Registration; eventId: string }) {
+function RegistrationActions({ registration, eventId }: { registration: Registration; eventId?: string }) {
     const [showStatusDialog, setShowStatusDialog] = useState(false)
 
     return (
@@ -99,17 +107,44 @@ function RegistrationActions({ registration, eventId }: { registration: Registra
     )
 }
 
-export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
+export function RegistrationsDataTable() {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [globalFilter, setGlobalFilter] = useState("")
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
     const [showBulkDialog, setShowBulkDialog] = useState(false)
+    const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined)
     const trpc = useTRPC();
+    const searchParams = useSearchParams()
+    const router = useRouter()
 
+    // Get eventId from URL params on mount
+    useEffect(() => {
+        const eventIdParam = searchParams.get("eventId")
+        if (eventIdParam) {
+            setSelectedEventId(eventIdParam)
+        }
+    }, [searchParams])
+
+    // Get events for the filter dropdown
+    const { data: events = [] } = useQuery(trpc.tournaments.allEvents.queryOptions())
+
+    // Get registrations with optional event filter
     const { data: registrations = [], isLoading } = useSuspenseQuery(
-        trpc.registrations.byEvent.queryOptions({ eventId })
+        trpc.registrations.all.queryOptions({ eventId: selectedEventId })
     );
+
+    // Update URL when event filter changes
+    const handleEventFilterChange = (eventId: string | undefined) => {
+        setSelectedEventId(eventId)
+        const params = new URLSearchParams(searchParams.toString())
+        if (eventId) {
+            params.set("eventId", eventId)
+        } else {
+            params.delete("eventId")
+        }
+        router.push(`/admin/dashboard/registrations?${params.toString()}`)
+    }
 
     const columns: ColumnDef<Registration>[] = [
         {
@@ -164,6 +199,14 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
             },
         },
         {
+            accessorKey: 'tournament.event.name',
+            id: 'tournamentName',
+            header: 'Torneo',
+            filterFn: (row, id, value) => {
+                return value.includes(row.original.tournament.event.name)
+            },
+        },
+        {
             id: "athleteGender",
             header: "Género",
             cell: ({ row }) => {
@@ -177,9 +220,22 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
             },
         },
         {
+            accessorKey: 'tournament.status',
+            id: 'tournamentStatus',
+            header: 'Estado Torneo',
+            cell: ({ row }) => {
+                const status = row.original.tournament.status
+                const label = getLabelFromValue(status, TOURNAMENT_STATUS)
+                return <Badge variant="default">{label}</Badge>
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.original.tournament.status)
+            },
+        },
+        {
             accessorKey: 'tournament.division',
             id: 'tournamentDivision',
-            header: 'División',
+            header: 'División Torneo',
             cell: ({ row }) => {
                 const tournamentDivision = row.original.tournament.division
                 const athleteDivision = mapTournamentDivisionToAthleteDivision(
@@ -216,28 +272,6 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
             },
         },
         {
-            accessorKey: 'tournament.equipment',
-            id: 'equipment',
-            header: 'Equipamiento',
-            cell: ({ row }) => {
-                const equipment = row.original.tournament.equipment
-                return equipment === 'classic' ? 'Clásico' : 'Equipado'
-            },
-        },
-        {
-            accessorKey: 'tournament.status',
-            id: 'tournamentStatus',
-            header: 'Estado Torneo',
-            cell: ({ row }) => {
-                const status = row.original.tournament.status
-                const label = getLabelFromValue(status, TOURNAMENT_STATUS)
-                return <Badge variant="default">{label}</Badge>
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.original.tournament.status)
-            },
-        },
-        {
             accessorKey: 'status',
             header: 'Estado Insc.',
             cell: ({ row }) => {
@@ -247,7 +281,7 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
         },
         {
             id: 'actions',
-            cell: ({ row }) => <RegistrationActions registration={row.original} eventId={eventId} />
+            cell: ({ row }) => <RegistrationActions registration={row.original} eventId={selectedEventId} />
         },
     ]
 
@@ -275,9 +309,17 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
     const selectedIds = selectedRows.map(row => row.original.id)
 
     // Extract unique values for filters
-    const uniqueTeams = Array.from(new Set(registrations.map(r => r.team.user?.name).filter(Boolean)))
-        .map(name => ({ label: name!, value: name! }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+    const uniqueTournaments = useMemo(() => {
+        return Array.from(new Set(registrations.map(r => r.tournament.event.name)))
+            .map(name => ({ label: name, value: name }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+    }, [registrations])
+
+    const uniqueTeams = useMemo(() => {
+        return Array.from(new Set(registrations.map(r => r.team.user?.name).filter(Boolean)))
+            .map(name => ({ label: name!, value: name! }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+    }, [registrations])
 
     return (
         <div className="space-y-4">
@@ -292,15 +334,43 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
                 </div>
             )}
             <div className="flex flex-col gap-3">
-                <Input
-                    placeholder="Buscar atleta..."
-                    value={(table.getColumn("athleteName")?.getFilterValue() as string) ?? ""}
-                    onChange={(event) =>
-                        table.getColumn("athleteName")?.setFilterValue(event.target.value)
-                    }
-                    className="max-w-sm"
-                />
+                <div className="flex items-center gap-3">
+                    <Input
+                        placeholder="Buscar atleta..."
+                        value={(table.getColumn("athleteName")?.getFilterValue() as string) ?? ""}
+                        onChange={(event) =>
+                            table.getColumn("athleteName")?.setFilterValue(event.target.value)
+                        }
+                        className="max-w-sm"
+                    />
+                    {/* Event Filter */}
+                    <Select
+                        value={selectedEventId || "all"}
+                        onValueChange={(value) => handleEventFilterChange(value === "all" ? undefined : value)}
+                    >
+                        <SelectTrigger className="w-[250px]">
+                            <SelectValue placeholder="Filtrar por evento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos los eventos</SelectItem>
+                            {events.map((event) => (
+                                <SelectItem key={event.id} value={event.id}>
+                                    {event.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="flex flex-wrap gap-2">
+                    {/* Tournament Filter */}
+                    {/* {uniqueTournaments.length > 0 && (
+                        <DataTableFacetedFilter
+                            column={table.getColumn("tournamentName")}
+                            title="Torneos"
+                            options={uniqueTournaments}
+                        />
+                    )} */}
+
                     {/* Team Filter */}
                     {uniqueTeams.length > 0 && (
                         <DataTableFacetedFilter
@@ -317,10 +387,17 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
                         options={ATHLETE_GENDER}
                     />
 
+                    {/* Tournament Status Filter */}
+                    <DataTableFacetedFilter
+                        column={table.getColumn("tournamentStatus")}
+                        title="Estado Torneo"
+                        options={TOURNAMENT_STATUS}
+                    />
+
                     {/* Tournament Division Filter */}
                     <DataTableFacetedFilter
                         column={table.getColumn("tournamentDivision")}
-                        title="División"
+                        title="División Torneo"
                         options={TOURNAMENT_DIVISION}
                     />
 
@@ -329,13 +406,6 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
                         column={table.getColumn("modality")}
                         title="Modalidad"
                         options={MODALITIES}
-                    />
-
-                    {/* Tournament Status Filter */}
-                    <DataTableFacetedFilter
-                        column={table.getColumn("tournamentStatus")}
-                        title="Estado Torneo"
-                        options={TOURNAMENT_STATUS}
                     />
                 </div>
             </div>
@@ -395,7 +465,7 @@ export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
                     open={showBulkDialog}
                     onOpenChange={setShowBulkDialog}
                     selectedIds={selectedIds}
-                    eventId={eventId}
+                    eventId={selectedEventId}
                 />
             )}
         </div>

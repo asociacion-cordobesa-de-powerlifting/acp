@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight, ChevronsUpDown, LogOut, Trophy, User2, Users } from "lucide-react"
+import { ChevronRight, ChevronsUpDown, ClipboardList, LogOut, Trophy, User2, Users } from "lucide-react"
 
 import {
     DropdownMenu,
@@ -56,6 +56,11 @@ const items: NavItem[] = [
         url: "/admin/dashboard/teams",
         icon: Users,
     },
+    {
+        title: "Inscripciones",
+        url: "/admin/dashboard/registrations",
+        icon: ClipboardList,
+    },
 ]
 
 export function AppSidebar({
@@ -83,7 +88,7 @@ export function AppSidebar({
                 >
                     <div className="relative">
                         <div className="flex aspect-square size-8 items-center justify-center rounded-full text-sidebar-primary-foreground">
-                            <Image src={'/logo.webp'} alt={"Asociación Cordobesa de Powerlifting Logo"} height={30} width={30} className="rounded-full" />
+                            <Image src={'/acp.webp'} alt={"Asociación Cordobesa de Powerlifting Logo"} height={30} width={30} className="rounded-full" />
                         </div>
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">

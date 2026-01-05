@@ -243,6 +243,52 @@ export const registrationsRouter = {
             });
         }),
 
+    all: adminProcedure
+        .input(z.object({ eventId: z.string().uuid().optional() }))
+        .query(async ({ ctx, input }) => {
+            if (input.eventId) {
+                // Filter by event (server-side)
+                const eventExists = await ctx.db.query.event.findFirst({
+                    where: and(eq(event.id, input.eventId), isNull(event.deletedAt))
+                });
+                if (!eventExists) throw new TRPCError({ code: "NOT_FOUND", message: "Evento no encontrado." });
+
+                const eventTournaments = await ctx.db.query.tournament.findMany({
+                    where: and(eq(tournament.eventId, input.eventId), isNull(tournament.deletedAt)),
+                });
+
+                if (eventTournaments.length === 0) {
+                    return [];
+                }
+
+                const tournamentIds = eventTournaments.map(t => t.id);
+
+                return await ctx.db.query.registrations.findMany({
+                    where: and(
+                        inArray(registrations.tournamentId, tournamentIds),
+                        isNull(registrations.deletedAt)
+                    ),
+                    with: {
+                        athlete: true,
+                        tournament: { with: { event: true } },
+                        team: { with: { user: true } }
+                    },
+                    orderBy: (registrations, { desc }) => [desc(registrations.createdAt)],
+                });
+            }
+            
+            // Get all registrations (no filter)
+            return await ctx.db.query.registrations.findMany({
+                where: isNull(registrations.deletedAt),
+                with: {
+                    athlete: true,
+                    tournament: { with: { event: true } },
+                    team: { with: { user: true } }
+                },
+                orderBy: (registrations, { desc }) => [desc(registrations.createdAt)],
+            });
+        }),
+
     update: protectedProcedure
         .input(updateRegistrationSchema)
         .mutation(async ({ ctx, input }) => {

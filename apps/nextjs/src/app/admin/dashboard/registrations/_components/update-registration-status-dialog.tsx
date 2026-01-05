@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
@@ -22,29 +22,39 @@ import { useTRPC } from "~/trpc/react"
 import { REGISTRATION_STATUS } from "@acme/shared/constants"
 import { toast } from "@acme/ui/toast"
 import { Loader2 } from "lucide-react"
+import { RouterOutputs } from "@acme/api"
 
-interface BulkUpdateStatusDialogProps {
+type Registration = RouterOutputs["registrations"]["all"][number]
+
+interface UpdateRegistrationStatusDialogProps {
+    registration: Registration
     open: boolean
     onOpenChange: (open: boolean) => void
-    selectedIds: string[]
-    eventId: string
+    eventId?: string
 }
 
-export function BulkUpdateStatusDialog({
+export function UpdateRegistrationStatusDialog({
+    registration,
     open,
     onOpenChange,
-    selectedIds,
     eventId
-}: BulkUpdateStatusDialogProps) {
-    const [status, setStatus] = useState<"pending" | "approved" | "rejected">("pending")
+}: UpdateRegistrationStatusDialogProps) {
+    const [status, setStatus] = useState(registration.status)
     const trpc = useTRPC()
     const queryClient = useQueryClient()
 
+    useEffect(() => {
+        if (open) {
+            setStatus(registration.status)
+        }
+    }, [open, registration.status])
+
     const updateStatus = useMutation(
-        trpc.registrations.updateStatusBulk.mutationOptions({
+        trpc.registrations.updateStatus.mutationOptions({
             onSuccess: async () => {
-                toast.success(`${selectedIds.length} inscripción(es) actualizada(s)`)
-                await queryClient.invalidateQueries(trpc.registrations.byEvent.pathFilter({ eventId }))
+                toast.success("Estado de inscripción actualizado")
+                // Invalidate all registrations queries
+                await queryClient.invalidateQueries(trpc.registrations.all.pathFilter())
                 onOpenChange(false)
             },
             onError: (err) => {
@@ -57,13 +67,13 @@ export function BulkUpdateStatusDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle>Cambiar Estado de Inscripciones</DialogTitle>
+                    <DialogTitle>Cambiar Estado de Inscripción</DialogTitle>
                     <DialogDescription>
-                        Actualizar el estado de {selectedIds.length} inscripción(es) seleccionada(s)
+                        Actualizar el estado de la inscripción de {registration.athlete.fullName}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
-                    <Select value={status} onValueChange={(value) => setStatus(value as any)}>
+                    <Select value={status} onValueChange={setStatus}>
                         <SelectTrigger>
                             <SelectValue placeholder="Seleccionar estado" />
                         </SelectTrigger>
@@ -81,13 +91,13 @@ export function BulkUpdateStatusDialog({
                         Cancelar
                     </Button>
                     <Button
-                        onClick={() => updateStatus.mutate({ ids: selectedIds, status })}
-                        disabled={updateStatus.isPending}
+                        onClick={() => updateStatus.mutate({ id: registration.id, status: status as any })}
+                        disabled={updateStatus.isPending || status === registration.status}
                     >
                         {updateStatus.isPending && (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         )}
-                        Actualizar {selectedIds.length} Inscripción(es)
+                        Guardar Cambios
                     </Button>
                 </DialogFooter>
             </DialogContent>
