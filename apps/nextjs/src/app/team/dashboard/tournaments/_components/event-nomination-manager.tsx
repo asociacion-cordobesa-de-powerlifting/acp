@@ -13,8 +13,8 @@ import {
 } from "@acme/ui/select"
 import { useTRPC } from "~/trpc/react"
 import { toast } from "@acme/ui/toast"
-import { getEligibleWeightClasses, getOpenCounterpart, canAthleteEnterOpen, matchTournament, getEligibleTournaments, type PlainAthlete, type PlainTournament } from "@acme/shared"
-import { WEIGHT_CLASSES, TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT } from "@acme/shared/constants"
+import { getEligibleWeightClasses, getOpenCounterpart, canAthleteEnterOpen, matchTournament, getEligibleTournaments, getAthleteDivision, type PlainAthlete, type PlainTournament } from "@acme/shared"
+import { WEIGHT_CLASSES, TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, ATHLETE_DIVISION } from "@acme/shared/constants"
 import { Badge } from "@acme/ui/badge"
 import { ScrollArea } from "@acme/ui/scroll-area"
 import { Switch } from "@acme/ui/switch"
@@ -389,12 +389,15 @@ export function EventNominationManager({
                 }
             }
 
+            const athleteDivision = getAthleteDivision(a.birthYear)
+
             return {
                 ...a,
                 entry,
                 matched,
                 plainAthlete,
-                plainTournaments
+                plainTournaments,
+                athleteDivision
             }
         })
     }, [athletes, localNominations, event.tournaments])
@@ -569,13 +572,13 @@ export function EventNominationManager({
                 const options: Array<{ value: "division_only" | "open_only" | "both", label: string }> = []
 
                 if (matched.division !== 'open') {
-                    options.push({ value: "division_only", label: `Solo ${divisionLabel}` })
+                    options.push({ value: "division_only", label: divisionLabel })
                     if (hasOpenOption) {
-                        options.push({ value: "open_only", label: "Solo Open" })
+                        options.push({ value: "open_only", label: "Open" })
                         options.push({ value: "both", label: "Ambas" })
                     }
                 } else if (hasOpenOption) {
-                    options.push({ value: "open_only", label: "Solo Open" })
+                    options.push({ value: "open_only", label: "Open" })
                 }
 
                 if (options.length === 0) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
@@ -610,6 +613,7 @@ export function EventNominationManager({
         }),
         columnHelper.accessor("gender", { id: "gender", header: () => null, cell: () => null }),
         columnHelper.accessor(row => row.matched?.division, { id: "matchedDivision", header: () => null, cell: () => null }),
+        columnHelper.accessor("athleteDivision", { id: "athleteDivision", header: () => null, cell: () => null }),
     ], [localNominations, event.tournaments, athletes])
 
     const table = useReactTable({
@@ -747,15 +751,15 @@ export function EventNominationManager({
                     </Select>
 
                     <Select
-                        value={(table.getColumn("matchedDivision")?.getFilterValue() as string) || "all"}
-                        onValueChange={(val) => table.getColumn("matchedDivision")?.setFilterValue(val === "all" ? undefined : val)}
+                        value={(table.getColumn("athleteDivision")?.getFilterValue() as string) || "all"}
+                        onValueChange={(val) => table.getColumn("athleteDivision")?.setFilterValue(val === "all" ? undefined : val)}
                     >
                         <SelectTrigger className="h-9 w-[130px] text-xs">
-                            <SelectValue placeholder="División" />
+                            <SelectValue placeholder="División Atleta" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">División: Todas</SelectItem>
-                            {TOURNAMENT_DIVISION.map(d => (
+                            {ATHLETE_DIVISION.map(d => (
                                 <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
                             ))}
                         </SelectContent>

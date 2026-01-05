@@ -30,7 +30,7 @@ import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS, TOURNAMENT_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER, REGISTRATION_STATUS } from "@acme/shared/constants"
+import { TOURNAMENT_STATUS, TOURNAMENT_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER, REGISTRATION_STATUS, ATHLETE_DIVISION } from "@acme/shared/constants"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -39,7 +39,7 @@ import {
 } from "@acme/ui/dropdown-menu"
 import { toast } from "@acme/ui/toast"
 import { EditRegistrationDialog } from "./edit-registration-dialog"
-import { getLabelFromValue } from "@acme/shared"
+import { getLabelFromValue, getAthleteDivision, mapTournamentDivisionToAthleteDivision } from "@acme/shared"
 
 // Helper type for Registration with relations
 type Registration = RouterOutputs["registrations"]["byTeam"][number]
@@ -159,13 +159,26 @@ export function RegistrationsDataTable() {
                 return value.includes(row.original.tournament.status)
             },
         },
+        // {
+        //     id: 'athleteDivision',
+        //     header: 'División Atleta',
+        //     cell: ({ row }) => {
+        //         const athleteDivision = getAthleteDivision(row.original.athlete.birthYear) as "subjunior" | "junior" | "open" | "master_1" | "master_2" | "master_3" | "master_4"
+        //         const athleteDivisionLabel = getLabelFromValue(athleteDivision, ATHLETE_DIVISION)
+        //         return athleteDivisionLabel
+        //     },
+        // },
         {
             accessorKey: 'tournament.division',
-            id: 'division',
-            header: 'División',
+            id: 'tournamentDivision',
+            header: 'División Torneo',
             cell: ({ row }) => {
-                const division = row.original.tournament.division
-                const label = getLabelFromValue(division, TOURNAMENT_DIVISION)
+                const tournamentDivision = row.original.tournament.division
+                const athleteDivision = mapTournamentDivisionToAthleteDivision(
+                    tournamentDivision,
+                    row.original.athlete.birthYear
+                )
+                const label = getLabelFromValue(athleteDivision, ATHLETE_DIVISION)
                 return label
             },
             filterFn: (row, id, value) => {
@@ -262,10 +275,10 @@ export function RegistrationsDataTable() {
                         options={TOURNAMENT_STATUS}
                     />
 
-                    {/* Division Filter */}
+                    {/* Tournament Division Filter */}
                     <DataTableFacetedFilter
-                        column={table.getColumn("division")}
-                        title="División"
+                        column={table.getColumn("tournamentDivision")}
+                        title="División Torneo"
                         options={TOURNAMENT_DIVISION}
                     />
 
