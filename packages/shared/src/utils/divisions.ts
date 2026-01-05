@@ -29,15 +29,8 @@ export function getEligibleDivisions(birthYear: number): string[] {
     if (age >= 60 && age <= 69) divisions.push("master_3");
     if (age >= 70) divisions.push("master_4");
 
-    // Open rule: Available if age >= 20 (Wait, user said "unless he is < 20")
-    // "un atleta junior puede querer inscribirse en open" -> Junior is 19-23.
-    // If 19, is he allowed in Open? "unless he is less than 20". So 19 is < 20, so NO open?
-    // User said: "(un atleta junior puede querer inscribirse en open), etc. despues lo desglosamos"
-    // Then later: "no se puede inscribir a cualquier division: puede ser la division correspondiente a la edad o a open (a menos que sea menor de 20 años, osea si tiene 19 no puede inscribirse a open)"
-    // OK, logic: IF Age >= 20 THEN Add "Open".
-    // 19 year old (Junior) -> Can NOT register in Open.
-    // 20 year old (Junior) -> Can register in Junior OR Open.
-    if (age >= 20) {
+    // Open rule: Available if age >= 19 (Juniors can enter Open)
+    if (age >= 19) {
         divisions.push("open");
     }
 

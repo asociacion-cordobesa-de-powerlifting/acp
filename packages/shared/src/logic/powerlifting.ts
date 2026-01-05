@@ -58,7 +58,7 @@ export function getEligibleTournaments(
             return age >= 40;
         }
         if (t.division === "open") {
-            return age >= 20; // Corrected rule: must be 20+ to enter Open
+            return age >= 19; // Juniors (19+) can enter Open
         }
         return false;
     });
@@ -112,8 +112,8 @@ export function matchTournament(
         t.division === targetDivision
     );
 
-    // Fallback to Open if specific age division is not available AND age >= 20
-    if (!match && targetDivision !== "open" && age >= 20) {
+    // Fallback to Open if specific age division is not available AND age >= 19
+    if (!match && targetDivision !== "open" && age >= 19) {
         match = allEventTournaments.find(t =>
             t.modality === modality &&
             t.equipment === equipment &&
@@ -130,6 +130,6 @@ export function matchTournament(
 export function canAthleteEnterOpen(athlete: PlainAthlete): boolean {
     const currentYear = dayjs().year();
     const age = currentYear - athlete.birthYear;
-    // Rule: must be 20+ to enter Open
-    return age >= 20;
+    // Rule: Juniors (19+) can enter Open
+    return age >= 19;
 }

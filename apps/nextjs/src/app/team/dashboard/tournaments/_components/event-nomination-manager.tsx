@@ -13,7 +13,7 @@ import {
 } from "@acme/ui/select"
 import { useTRPC } from "~/trpc/react"
 import { toast } from "@acme/ui/toast"
-import { getEligibleWeightClasses, getOpenCounterpart, canAthleteEnterOpen, matchTournament, getEligibleTournaments, getAthleteDivision, type PlainAthlete, type PlainTournament } from "@acme/shared"
+import { getEligibleWeightClasses, getOpenCounterpart, canAthleteEnterOpen, matchTournament, getEligibleTournaments, getAthleteDivision, mapTournamentDivisionToAthleteDivision, getLabelFromValue, type PlainAthlete, type PlainTournament } from "@acme/shared"
 import { WEIGHT_CLASSES, TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, ATHLETE_DIVISION } from "@acme/shared/constants"
 import { Badge } from "@acme/ui/badge"
 import { ScrollArea } from "@acme/ui/scroll-area"
@@ -443,11 +443,18 @@ export function EventNominationManager({
                             <span className="text-md text-muted-foreground uppercase">
                                 {a.gender} • {dayjs().year() - a.birthYear} años
                             </span>
-                            {a.matched && (
-                                <Badge variant="secondary" className="h-3.5 px-1 text-[8px] uppercase">
-                                    {TOURNAMENT_DIVISION.find(d => d.value === a.matched?.division)?.label}
-                                </Badge>
-                            )}
+                            {a.matched && (() => {
+                                const athleteDivision = mapTournamentDivisionToAthleteDivision(
+                                    a.matched.division,
+                                    a.birthYear
+                                )
+                                const divisionLabel = getLabelFromValue(athleteDivision, ATHLETE_DIVISION)
+                                return (
+                                    <Badge variant="secondary" className="h-3.5 px-1 text-[8px] uppercase">
+                                        {divisionLabel}
+                                    </Badge>
+                                )
+                            })()}
                             {a.entry?.isApproved && (
                                 <Badge variant="accent" className="h-3.5 px-1 text-[8px]">Aprobado</Badge>
                             )}
@@ -568,7 +575,11 @@ export function EventNominationManager({
                 const hasOpenOption = !!openCounterpart && canEnterOpenAttr
 
                 // Determine available options
-                const divisionLabel = TOURNAMENT_DIVISION.find(d => d.value === matched.division)?.label ?? ""
+                const athleteDivision = mapTournamentDivisionToAthleteDivision(
+                    matched.division,
+                    a.birthYear
+                )
+                const divisionLabel = getLabelFromValue(athleteDivision, ATHLETE_DIVISION)
                 const options: Array<{ value: "division_only" | "open_only" | "both", label: string }> = []
 
                 if (matched.division !== 'open') {
@@ -590,7 +601,7 @@ export function EventNominationManager({
                 }
 
                 return (
-                    <>
+                    <div className="flex flex-col gap-0.5">
                         <Select
                             disabled={a.entry.isApproved}
                             value={a.entry.divisionMode}
@@ -607,7 +618,12 @@ export function EventNominationManager({
                                 ))}
                             </SelectContent>
                         </Select>
-                    </>
+                        {a.entry.divisionMode === "both" && (
+                            <span className="text-[9px] text-muted-foreground mt-2">
+                                Doble inscripción
+                            </span>
+                        )}
+                    </div>
                 )
             }
         }),
