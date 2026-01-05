@@ -1,7 +1,7 @@
 import { adminProcedure, protectedProcedure } from "../trpc";
 import { teamData, user } from "@acme/db/schema";
 import { TRPCError, TRPCRouterRecord } from "@trpc/server";
-import { or, ne, eq, desc } from "@acme/db";
+import { or, ne, eq, desc, isNull } from "@acme/db";
 import z from "zod";
 
 export const teamsRouter = {
@@ -54,6 +54,15 @@ export const teamsRouter = {
             return await ctx.db.insert(teamData).values({
                 userId,
                 slug: input.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+            });
+        }),
+
+    listWithTeamData: adminProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.query.teamData.findMany({
+                where: isNull(teamData.deletedAt),
+                with: { user: true },
+                orderBy: [desc(teamData.createdAt)],
             });
         }),
 } satisfies TRPCRouterRecord;

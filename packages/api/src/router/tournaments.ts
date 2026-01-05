@@ -1,4 +1,4 @@
-import { tournament, user, event } from "@acme/db/schema";
+import { tournament, user, event, athlete, registrations } from "@acme/db/schema";
 import { adminProcedure, protectedProcedure } from "../trpc";
 import { or, ne, eq, desc, and, sql, not, isNull } from "@acme/db";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
@@ -298,6 +298,57 @@ export const tournamentsRouter = {
             await ctx.db.update(tournament)
                 .set({ deletedAt: now })
                 .where(eq(tournament.id, input.id));
+        }),
+
+    stats: adminProcedure
+        .query(async ({ ctx }) => {
+            // Count teams (users with role 'user')
+            const teams = await ctx.db.query.user.findMany({
+                where: eq(user.role, 'user'),
+            });
+            const totalTeams = teams.length;
+
+            // Count events
+            const events = await ctx.db.query.event.findMany({
+                where: isNull(event.deletedAt),
+            });
+            const totalEvents = events.length;
+
+            // Count tournaments
+            const tournaments = await ctx.db.query.tournament.findMany({
+                where: isNull(tournament.deletedAt),
+            });
+            const totalTournaments = tournaments.length;
+
+            // Count registrations by status
+            const allRegistrations = await ctx.db.query.registrations.findMany({
+                where: isNull(registrations.deletedAt),
+            });
+            const totalRegistrations = allRegistrations.length;
+            const pendingRegistrations = allRegistrations.filter(r => r.status === 'pending').length;
+            const approvedRegistrations = allRegistrations.filter(r => r.status === 'approved').length;
+            const rejectedRegistrations = allRegistrations.filter(r => r.status === 'rejected').length;
+
+            // Count athletes (from all teams)
+            const athletes = await ctx.db.query.athlete.findMany({
+                where: isNull(athlete.deletedAt),
+            });
+            const totalAthletes = athletes.length;
+
+            // Get active tournaments (preliminary_open)
+            const activeTournaments = tournaments.filter(t => t.status === 'preliminary_open').length;
+
+            return {
+                totalTeams,
+                totalEvents,
+                totalTournaments,
+                activeTournaments,
+                totalRegistrations,
+                pendingRegistrations,
+                approvedRegistrations,
+                rejectedRegistrations,
+                totalAthletes,
+            };
         }),
 
 } satisfies TRPCRouterRecord;

@@ -1,7 +1,7 @@
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { protectedProcedure } from "../trpc";
+import { protectedProcedure, adminProcedure } from "../trpc";
 import { athlete, teamData } from "@acme/db/schema";
 import { eq, desc, and, isNull } from "@acme/db";
 import { athleteValidator } from "@acme/shared/validators";
@@ -115,5 +115,22 @@ export const athletesRouter = {
             }
 
             await ctx.db.update(athlete).set({ deletedAt: new Date() }).where(eq(athlete.id, input.id));
+        }),
+
+    listAll: adminProcedure
+        .input(z.object({ teamId: z.string().uuid().optional() }).optional())
+        .query(async ({ ctx, input }) => {
+            if (input?.teamId) {
+                return ctx.db.query.athlete.findMany({
+                    where: and(eq(athlete.teamId, input.teamId), isNull(athlete.deletedAt)),
+                    with: { team: { with: { user: true } } },
+                    orderBy: [desc(athlete.createdAt)],
+                });
+            }
+            return ctx.db.query.athlete.findMany({
+                where: isNull(athlete.deletedAt),
+                with: { team: { with: { user: true } } },
+                orderBy: [desc(athlete.createdAt)],
+            });
         }),
 } satisfies TRPCRouterRecord;
