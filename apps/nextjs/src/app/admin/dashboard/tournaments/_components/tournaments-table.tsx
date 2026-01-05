@@ -33,7 +33,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
-import { ChevronDown, MoreHorizontal, Pencil, Trash2, Calendar, MapPin } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Pencil, Trash2, Calendar, MapPin, Users } from "lucide-react"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
@@ -44,6 +44,7 @@ import { dayjs } from "@acme/shared/libs"
 import { toast } from "@acme/ui/toast"
 import { EditEventDialog } from "./edit-event-dialog"
 import { EditTournamentStatusDialog } from "./edit-tournament-status-dialog"
+import { useRouter } from "next/navigation"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -167,6 +168,7 @@ function EventActions({ event }: { event: EventWithTournaments }) {
     const queryClient = useQueryClient();
     const [openDelete, setOpenDelete] = useState(false)
     const [openEdit, setOpenEdit] = useState(false)
+    const router = useRouter()
 
     const deleteEvent = useMutation(
         trpc.tournaments.deleteEvent.mutationOptions({
@@ -217,6 +219,15 @@ function EventActions({ event }: { event: EventWithTournaments }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/admin/dashboard/registrations/events/${event.id}`)
+                        }}
+                    >
+                        <Users className="mr-2 h-4 w-4" />
+                        Ver Inscriptos
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setOpenEdit(true)}
                     >

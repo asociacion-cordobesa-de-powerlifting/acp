@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -11,8 +10,9 @@ import {
     getFilteredRowModel,
     type SortingState,
     type ColumnFiltersState,
+    type RowSelectionState,
 } from "@tanstack/react-table"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
     Table,
     TableBody,
@@ -23,43 +23,53 @@ import {
 } from "@acme/ui/table"
 import { Button } from "@acme/ui/button"
 import { Input } from "@acme/ui/input"
-import { ChevronDown, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import { ChevronDown, MoreHorizontal } from "lucide-react"
+import { useSuspenseQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_STATUS, TOURNAMENT_DIVISION, WEIGHT_CLASSES, MODALITIES, ATHLETE_GENDER, REGISTRATION_STATUS, ATHLETE_DIVISION } from "@acme/shared/constants"
+import { getLabelFromValue, mapTournamentDivisionToAthleteDivision } from "@acme/shared"
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
-import { toast } from "@acme/ui/toast"
-import { getLabelFromValue, getAthleteDivision, mapTournamentDivisionToAthleteDivision } from "@acme/shared"
+import { UpdateRegistrationStatusDialog } from "./update-registration-status-dialog"
+import { BulkUpdateStatusDialog } from "./bulk-update-status-dialog"
 
 // Helper type for Registration with relations
-type Registration = RouterOutputs["registrations"]["byTeam"][number]
+type Registration = RouterOutputs["registrations"]["byEvent"][number]
 
-function RegistrationActions({ registration }: { registration: Registration }) {
-    const [showEditDialog, setShowEditDialog] = useState(false)
-    const trpc = useTRPC();
-    const queryClient = useQueryClient();
+// Checkbox component for row selection
+function IndeterminateCheckbox({
+    indeterminate,
+    className = "",
+    ...rest
+}: { indeterminate?: boolean } & React.HTMLProps<HTMLInputElement>) {
+    const ref = useRef<HTMLInputElement>(null!)
 
-    const deleteRegistration = useMutation(
-        trpc.registrations.delete.mutationOptions({
-            onSuccess: async () => {
-                toast.success("Inscripción eliminada correctamente")
-                // Invalidate query
-                await queryClient.invalidateQueries(trpc.registrations.byTeam.pathFilter())
-            },
-            onError: (err) => {
-                toast.error(err.message)
-            },
-        })
+    useEffect(() => {
+        if (typeof indeterminate === "boolean") {
+            ref.current.indeterminate = !rest.checked && indeterminate
+        }
+    }, [ref, indeterminate, rest.checked])
+
+    return (
+        <input
+            type="checkbox"
+            ref={ref}
+            className={`cursor-pointer ${className}`}
+            {...rest}
+        />
     )
+}
+
+function RegistrationActions({ registration, eventId }: { registration: Registration; eventId: string }) {
+    const [showStatusDialog, setShowStatusDialog] = useState(false)
 
     return (
         <>
@@ -71,35 +81,64 @@ function RegistrationActions({ registration }: { registration: Registration }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                        onClick={() => {
-                            if (confirm("¿Estás seguro de eliminar esta inscripción?")) {
-                                deleteRegistration.mutate({ id: registration.id })
-                            }
-                        }}
-                        className="text-destructive focus:text-destructive"
-                    >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar
+                    <DropdownMenuItem onClick={() => setShowStatusDialog(true)}>
+                        Cambiar Estado
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            {showStatusDialog && (
+                <UpdateRegistrationStatusDialog
+                    registration={registration}
+                    open={showStatusDialog}
+                    onOpenChange={setShowStatusDialog}
+                    eventId={eventId}
+                />
+            )}
         </>
     )
 }
 
-export function RegistrationsDataTable() {
+export function EventRegistrationsDataTable({ eventId }: { eventId: string }) {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [globalFilter, setGlobalFilter] = useState("")
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+    const [showBulkDialog, setShowBulkDialog] = useState(false)
     const trpc = useTRPC();
 
-    const { data: registrations = [], isLoading } = useSuspenseQuery(trpc.registrations.byTeam.queryOptions());
+    const { data: registrations = [], isLoading } = useSuspenseQuery(
+        trpc.registrations.byEvent.queryOptions({ eventId })
+    );
 
     const columns: ColumnDef<Registration>[] = [
         {
-            accessorKey: 'athlete.fullName', // Access nested data
-            id: 'athleteName', // Explicit ID for column
+            id: "select",
+            header: ({ table }) => (
+                <IndeterminateCheckbox
+                    {...{
+                        checked: table.getIsAllPageRowsSelected(),
+                        indeterminate: table.getIsSomePageRowsSelected(),
+                        onChange: table.getToggleAllPageRowsSelectedHandler(),
+                    }}
+                />
+            ),
+            cell: ({ row }) => (
+                <IndeterminateCheckbox
+                    {...{
+                        checked: row.getIsSelected(),
+                        disabled: !row.getCanSelect(),
+                        indeterminate: row.getIsSomeSelected(),
+                        onChange: row.getToggleSelectedHandler(),
+                    }}
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        },
+        {
+            accessorKey: 'athlete.fullName',
+            id: 'athleteName',
             header: ({ column }) => {
                 return (
                     <Button
@@ -113,11 +152,15 @@ export function RegistrationsDataTable() {
             },
         },
         {
-            accessorKey: 'tournament.event.name',
-            id: 'tournamentName', // Explicit ID for faceted filtering
-            header: 'Torneo',
+            accessorKey: 'team.user.name',
+            id: 'teamName',
+            header: 'Equipo',
+            cell: ({ row }) => {
+                return row.original.team.user?.name || '-'
+            },
             filterFn: (row, id, value) => {
-                return value.includes(row.original.tournament.event.name)
+                const teamName = row.original.team.user?.name || ''
+                return value.includes(teamName)
             },
         },
         {
@@ -134,31 +177,9 @@ export function RegistrationsDataTable() {
             },
         },
         {
-            accessorKey: 'tournament.status',
-            id: 'tournamentStatus',
-            header: 'Estado Torneo',
-            cell: ({ row }) => {
-                const status = row.original.tournament.status
-                const label = getLabelFromValue(status, TOURNAMENT_STATUS)
-                return <Badge variant="default">{label}</Badge>
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.original.tournament.status)
-            },
-        },
-        // {
-        //     id: 'athleteDivision',
-        //     header: 'División Atleta',
-        //     cell: ({ row }) => {
-        //         const athleteDivision = getAthleteDivision(row.original.athlete.birthYear) as "subjunior" | "junior" | "open" | "master_1" | "master_2" | "master_3" | "master_4"
-        //         const athleteDivisionLabel = getLabelFromValue(athleteDivision, ATHLETE_DIVISION)
-        //         return athleteDivisionLabel
-        //     },
-        // },
-        {
             accessorKey: 'tournament.division',
             id: 'tournamentDivision',
-            header: 'División Torneo',
+            header: 'División',
             cell: ({ row }) => {
                 const tournamentDivision = row.original.tournament.division
                 const athleteDivision = mapTournamentDivisionToAthleteDivision(
@@ -182,7 +203,8 @@ export function RegistrationsDataTable() {
             },
         },
         {
-            accessorKey: 'modality',
+            accessorKey: 'tournament.modality',
+            id: 'modality',
             header: 'Modalidad',
             cell: ({ row }) => {
                 const modality = row.original.tournament.modality
@@ -191,6 +213,28 @@ export function RegistrationsDataTable() {
             },
             filterFn: (row, id, value) => {
                 return value.includes(row.original.tournament.modality)
+            },
+        },
+        {
+            accessorKey: 'tournament.equipment',
+            id: 'equipment',
+            header: 'Equipamiento',
+            cell: ({ row }) => {
+                const equipment = row.original.tournament.equipment
+                return equipment === 'classic' ? 'Clásico' : 'Equipado'
+            },
+        },
+        {
+            accessorKey: 'tournament.status',
+            id: 'tournamentStatus',
+            header: 'Estado Torneo',
+            cell: ({ row }) => {
+                const status = row.original.tournament.status
+                const label = getLabelFromValue(status, TOURNAMENT_STATUS)
+                return <Badge variant="default">{label}</Badge>
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.original.tournament.status)
             },
         },
         {
@@ -203,8 +247,8 @@ export function RegistrationsDataTable() {
         },
         {
             id: 'actions',
-            cell: ({ row }) => <RegistrationActions registration={row.original} />
-        }
+            cell: ({ row }) => <RegistrationActions registration={row.original} eventId={eventId} />
+        },
     ]
 
     const table = useReactTable({
@@ -214,6 +258,8 @@ export function RegistrationsDataTable() {
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
+        enableRowSelection: true,
+        onRowSelectionChange: setRowSelection,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         onGlobalFilterChange: setGlobalFilter,
@@ -221,16 +267,30 @@ export function RegistrationsDataTable() {
             sorting,
             columnFilters,
             globalFilter,
+            rowSelection,
         },
     })
 
-    // Extract unique tournaments for filter options
-    const uniqueTournaments = Array.from(new Set(registrations.map(r => r.tournament.event.name)))
-        .map(name => ({ label: name, value: name }))
+    const selectedRows = table.getFilteredSelectedRowModel().rows
+    const selectedIds = selectedRows.map(row => row.original.id)
+
+    // Extract unique values for filters
+    const uniqueTeams = Array.from(new Set(registrations.map(r => r.team.user?.name).filter(Boolean)))
+        .map(name => ({ label: name!, value: name! }))
         .sort((a, b) => a.label.localeCompare(b.label));
 
     return (
         <div className="space-y-4">
+            {selectedIds.length > 0 && (
+                <div className="flex items-center justify-between rounded-md border bg-muted/50 p-3">
+                    <span className="text-sm text-muted-foreground">
+                        {selectedIds.length} inscripción(es) seleccionada(s)
+                    </span>
+                    <Button onClick={() => setShowBulkDialog(true)} variant="default" size="sm">
+                        Cambiar Estado
+                    </Button>
+                </div>
+            )}
             <div className="flex flex-col gap-3">
                 <Input
                     placeholder="Buscar atleta..."
@@ -241,12 +301,14 @@ export function RegistrationsDataTable() {
                     className="max-w-sm"
                 />
                 <div className="flex flex-wrap gap-2">
-                    {/* Tournament Filter */}
-                    {uniqueTournaments.length > 0 && <DataTableFacetedFilter
-                        column={table.getColumn("tournamentName")}
-                        title="Torneos"
-                        options={uniqueTournaments}
-                    />}
+                    {/* Team Filter */}
+                    {uniqueTeams.length > 0 && (
+                        <DataTableFacetedFilter
+                            column={table.getColumn("teamName")}
+                            title="Equipos"
+                            options={uniqueTeams}
+                        />
+                    )}
 
                     {/* Gender Filter */}
                     <DataTableFacetedFilter
@@ -255,25 +317,11 @@ export function RegistrationsDataTable() {
                         options={ATHLETE_GENDER}
                     />
 
-                    {/* Status Filter */}
-                    <DataTableFacetedFilter
-                        column={table.getColumn("tournamentStatus")}
-                        title="Estado Torneo"
-                        options={TOURNAMENT_STATUS}
-                    />
-
                     {/* Tournament Division Filter */}
                     <DataTableFacetedFilter
                         column={table.getColumn("tournamentDivision")}
-                        title="División Torneo"
+                        title="División"
                         options={TOURNAMENT_DIVISION}
-                    />
-
-                    {/* Weight Class Filter */}
-                    <DataTableFacetedFilter
-                        column={table.getColumn("weightClass")}
-                        title="Categoría"
-                        options={WEIGHT_CLASSES}
                     />
 
                     {/* Modality Filter */}
@@ -281,6 +329,13 @@ export function RegistrationsDataTable() {
                         column={table.getColumn("modality")}
                         title="Modalidad"
                         options={MODALITIES}
+                    />
+
+                    {/* Tournament Status Filter */}
+                    <DataTableFacetedFilter
+                        column={table.getColumn("tournamentStatus")}
+                        title="Estado Torneo"
+                        options={TOURNAMENT_STATUS}
                     />
                 </div>
             </div>
@@ -335,6 +390,15 @@ export function RegistrationsDataTable() {
                 </Table>
             </div>
             <DataTablePagination table={table} />
+            {showBulkDialog && (
+                <BulkUpdateStatusDialog
+                    open={showBulkDialog}
+                    onOpenChange={setShowBulkDialog}
+                    selectedIds={selectedIds}
+                    eventId={eventId}
+                />
+            )}
         </div>
     )
 }
+

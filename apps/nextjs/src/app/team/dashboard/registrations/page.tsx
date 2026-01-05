@@ -18,7 +18,7 @@ export default function RegistrationsPage() {
                     <div className="flex gap-2 items-center">
                         {/* <RegisterAthelete /> */}
                         <Link href="/team/dashboard/registrations/register-team" className={buttonVariants({ variant: "default" })}>
-                            Inscribir Equipo
+                            Gestionar Nominaciones
                         </Link>
                     </div>
                 }

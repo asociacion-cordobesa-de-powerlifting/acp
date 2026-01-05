@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { protectedProcedure } from "../trpc";
-import { registrations, tournament, athlete, teamData, weightClassEnum } from "@acme/db/schema";
+import { protectedProcedure, adminProcedure } from "../trpc";
+import { registrations, tournament, athlete, teamData, weightClassEnum, event, registrationStatusEnum } from "@acme/db/schema";
 import { TRPCError, TRPCRouterRecord } from "@trpc/server";
-import { eq, and, isNull, inArray } from "@acme/db";
+import { eq, and, isNull, inArray, desc } from "@acme/db";
 import { registrationValidator, updateRegistrationSchema } from "@acme/shared/validators";
 import { canAthleteParticipateIn, getEligibleWeightClasses } from "@acme/shared";
 
@@ -208,6 +208,41 @@ export const registrationsRouter = {
             });
         }),
 
+    byEvent: adminProcedure
+        .input(z.object({ eventId: z.string().uuid() }))
+        .query(async ({ ctx, input }) => {
+            // Verify event exists
+            const eventExists = await ctx.db.query.event.findFirst({
+                where: and(eq(event.id, input.eventId), isNull(event.deletedAt))
+            });
+            if (!eventExists) throw new TRPCError({ code: "NOT_FOUND", message: "Evento no encontrado." });
+
+            // Get all tournaments for this event
+            const eventTournaments = await ctx.db.query.tournament.findMany({
+                where: and(eq(tournament.eventId, input.eventId), isNull(tournament.deletedAt)),
+            });
+
+            if (eventTournaments.length === 0) {
+                return [];
+            }
+
+            const tournamentIds = eventTournaments.map(t => t.id);
+
+            // Get all registrations for these tournaments
+            return await ctx.db.query.registrations.findMany({
+                where: and(
+                    inArray(registrations.tournamentId, tournamentIds),
+                    isNull(registrations.deletedAt)
+                ),
+                with: {
+                    athlete: true,
+                    tournament: { with: { event: true } },
+                    team: { with: { user: true } }
+                },
+                orderBy: (registrations, { desc }) => [desc(registrations.createdAt)],
+            });
+        }),
+
     update: protectedProcedure
         .input(updateRegistrationSchema)
         .mutation(async ({ ctx, input }) => {
@@ -234,5 +269,35 @@ export const registrationsRouter = {
             });
             if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Inscripción no encontrada." });
             return ctx.db.update(registrations).set({ deletedAt: new Date() }).where(eq(registrations.id, input.id));
+        }),
+
+    updateStatus: adminProcedure
+        .input(z.object({
+            id: z.string().uuid(),
+            status: z.enum(registrationStatusEnum.enumValues),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const existing = await ctx.db.query.registrations.findFirst({
+                where: and(eq(registrations.id, input.id), isNull(registrations.deletedAt))
+            });
+            if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Inscripción no encontrada." });
+            return ctx.db.update(registrations).set({ status: input.status }).where(eq(registrations.id, input.id));
+        }),
+
+    updateStatusBulk: adminProcedure
+        .input(z.object({
+            ids: z.array(z.string().uuid()),
+            status: z.enum(registrationStatusEnum.enumValues),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            if (input.ids.length === 0) {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "No se proporcionaron inscripciones para actualizar." });
+            }
+            return ctx.db.update(registrations)
+                .set({ status: input.status })
+                .where(and(
+                    inArray(registrations.id, input.ids),
+                    isNull(registrations.deletedAt)
+                ));
         }),
 } satisfies TRPCRouterRecord;

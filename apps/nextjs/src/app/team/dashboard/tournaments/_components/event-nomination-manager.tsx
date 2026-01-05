@@ -51,7 +51,11 @@ type NominationEntry = {
     weightClass: string
     divisionMode: "division_only" | "open_only" | "both"
     isApproved: boolean
+    isRejected: boolean
     isExisting: boolean
+    // Status for each division when in "both" mode
+    divisionStatus?: "pending" | "approved" | "rejected"
+    openStatus?: "pending" | "approved" | "rejected"
 }
 
 export function EventNominationManager({
@@ -136,6 +140,21 @@ export function EventNominationManager({
                     continue // Skip if no valid registration found
                 }
 
+                // Calculate status for each division when in "both" mode
+                let divisionStatus: "pending" | "approved" | "rejected" | undefined
+                let openStatus: "pending" | "approved" | "rejected" | undefined
+
+                if (divisionMode === "both" && nonOpenReg && openReg) {
+                    divisionStatus = nonOpenReg.status as "pending" | "approved" | "rejected"
+                    openStatus = openReg.status as "pending" | "approved" | "rejected"
+                }
+
+                // Determine overall status
+                // isApproved: true if ANY registration is approved
+                // isRejected: true if ALL registrations are rejected (not just some)
+                const allRejected = existing.length > 0 && existing.every(r => r.status === 'rejected')
+                const anyApproved = existing.some(r => r.status === 'approved')
+
                 initial[a.id] = {
                     athleteId: a.id,
                     tournamentId: baseTournamentId,
@@ -143,8 +162,11 @@ export function EventNominationManager({
                     equipment: mainReg.tournament.equipment as any,
                     weightClass: mainReg.weightClass ?? "",
                     divisionMode,
-                    isApproved: existing.some(r => r.status === 'approved'),
-                    isExisting: true
+                    isApproved: anyApproved,
+                    isRejected: allRejected,
+                    isExisting: true,
+                    divisionStatus,
+                    openStatus
                 }
             }
         }
@@ -170,6 +192,9 @@ export function EventNominationManager({
                     prevEntry.weightClass !== newEntry.weightClass ||
                     prevEntry.divisionMode !== newEntry.divisionMode ||
                     prevEntry.isApproved !== newEntry.isApproved ||
+                    prevEntry.isRejected !== newEntry.isRejected ||
+                    prevEntry.divisionStatus !== newEntry.divisionStatus ||
+                    prevEntry.openStatus !== newEntry.openStatus ||
                     prevEntry.isExisting !== newEntry.isExisting
                 )
             }) || newKeys.some(key => !prev[key])
@@ -246,7 +271,10 @@ export function EventNominationManager({
                     weightClass: eligibleWeights[0] ?? "",
                     divisionMode: "division_only",
                     isApproved: false,
-                    isExisting: false
+                    isRejected: false,
+                    isExisting: false,
+                    divisionStatus: undefined,
+                    openStatus: undefined
                 }
             }
             return newNom
@@ -436,11 +464,19 @@ export function EventNominationManager({
             ),
             cell: ({ row }) => {
                 const a = row.original
+                const entry = a.entry
+                const isRejected = entry?.isRejected ?? false
+                const hasPartialRejection = entry?.divisionMode === "both" && 
+                    ((entry.divisionStatus === "rejected" && entry.openStatus !== "rejected") ||
+                     (entry.openStatus === "rejected" && entry.divisionStatus !== "rejected"))
+                
                 return (
                     <div className="flex flex-col">
-                        <span className="font-semibold">{a.fullName}</span>
-                        <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-md text-muted-foreground uppercase">
+                        <span className={`font-semibold ${isRejected || hasPartialRejection ? "text-destructive" : ""}`}>
+                            {a.fullName}
+                        </span>
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                            <span className={`text-md uppercase ${isRejected || hasPartialRejection ? "text-destructive" : "text-muted-foreground"}`}>
                                 {a.gender} • {dayjs().year() - a.birthYear} años
                             </span>
                             {a.matched && (() => {
@@ -455,10 +491,29 @@ export function EventNominationManager({
                                     </Badge>
                                 )
                             })()}
-                            {a.entry?.isApproved && (
+                            {entry?.isApproved && (
                                 <Badge variant="accent" className="h-3.5 px-1 text-[8px]">Aprobado</Badge>
                             )}
-                            {!a.matched && !a.entry && (
+                            {isRejected && (
+                                <Badge variant="secondary" className="h-3.5 px-1 text-[8px] bg-destructive text-destructive-foreground">
+                                    Rechazado
+                                </Badge>
+                            )}
+                            {hasPartialRejection && (
+                                <div className="flex items-center gap-0.5">
+                                    {entry.divisionStatus === "rejected" && (
+                                        <Badge variant="secondary" className="h-3.5 px-1 text-[8px] bg-destructive text-destructive-foreground">
+                                            Div. Rechazada
+                                        </Badge>
+                                    )}
+                                    {entry.openStatus === "rejected" && (
+                                        <Badge variant="secondary" className="h-3.5 px-1 text-[8px] bg-destructive text-destructive-foreground">
+                                            Open Rechazada
+                                        </Badge>
+                                    )}
+                                </div>
+                            )}
+                            {!a.matched && !entry && (
                                 <span className="text-destructive font-bold text-[8px]">SIN TORNEO</span>
                             )}
                         </div>
