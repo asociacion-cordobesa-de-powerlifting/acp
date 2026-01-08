@@ -1,10 +1,33 @@
-import { adminProcedure, protectedProcedure } from "../trpc";
-import { teamData, user } from "@acme/db/schema";
+import { adminProcedure, protectedProcedure, publicProcedure } from "../trpc";
+import { teamData, user, athlete } from "@acme/db/schema";
 import { TRPCError, TRPCRouterRecord } from "@trpc/server";
-import { or, ne, eq, desc, isNull } from "@acme/db";
+import { or, ne, eq, desc, isNull, count } from "@acme/db";
 import z from "zod";
 
 export const teamsRouter = {
+    // Public endpoint - no auth required
+    publicList: publicProcedure
+        .query(async ({ ctx }) => {
+            const teams = await ctx.db.query.teamData.findMany({
+                where: isNull(teamData.deletedAt),
+                with: {
+                    user: true,
+                    athletes: {
+                        where: isNull(athlete.deletedAt),
+                    }
+                },
+                orderBy: [desc(teamData.createdAt)],
+            });
+
+            // Return only public info
+            return teams.map(team => ({
+                id: team.id,
+                name: team.user.name,
+                slug: team.slug,
+                athleteCount: team.athletes.length,
+            }));
+        }),
+
     list: protectedProcedure
         .query(async ({ ctx }) => {
 

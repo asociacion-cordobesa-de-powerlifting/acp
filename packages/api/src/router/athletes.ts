@@ -2,11 +2,37 @@ import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { protectedProcedure, adminProcedure, publicProcedure } from "../trpc";
-import { athlete, teamData } from "@acme/db/schema";
+import { athlete, teamData, user } from "@acme/db/schema";
 import { eq, desc, and, isNull } from "@acme/db";
 import { athleteValidator } from "@acme/shared/validators";
 
 export const athletesRouter = {
+
+    // Public endpoint - no auth required, excludes sensitive data
+    publicList: publicProcedure
+        .query(async ({ ctx }) => {
+            const athletes = await ctx.db.query.athlete.findMany({
+                where: isNull(athlete.deletedAt),
+                with: {
+                    team: {
+                        with: { user: true }
+                    }
+                },
+                orderBy: [desc(athlete.createdAt)],
+            });
+
+            // Return only public info (no DNI)
+            return athletes.map(a => ({
+                id: a.id,
+                fullName: a.fullName,
+                birthYear: a.birthYear,
+                gender: a.gender,
+                teamName: a.team.user.name,
+                squatBestKg: a.squatBestKg,
+                benchBestKg: a.benchBestKg,
+                deadliftBestKg: a.deadliftBestKg,
+            }));
+        }),
 
     list: protectedProcedure.query(async ({ ctx }) => {
         // 1. Get the teamId associated with the current user

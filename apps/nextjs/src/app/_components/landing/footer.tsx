@@ -7,7 +7,7 @@ export const Footer = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 pb-8 border-b border-background/20">
             <div>
               <p className="font-semibold mb-2">
-                © 2025 Asociación Cordobesa de Powerlifting
+                © {new Date().getFullYear()} Asociación Cordobesa de Powerlifting
               </p>
               <p className="text-sm text-foreground/80">
                 Todos los derechos reservados.

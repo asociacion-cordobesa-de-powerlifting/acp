@@ -1,20 +1,10 @@
-import { Button, buttonVariants } from '@acme/ui/button';
-import { Badge } from '@acme/ui/badge';
-import {
-  CalendarIcon,
-  UsersIcon,
-} from '@acme/ui/icons';
-import Link from 'next/link';
 import Navbar from './_components/landing/navbar';
+import HeroVideo from './_components/landing/hero-video';
 import SegmentsSection from './_components/landing/segments-section';
 import StepsSection from './_components/landing/steps-section';
 import UpcomingTournamentsSection from './_components/landing/upcoming-tournaments-section';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@acme/ui/card';
+import TeamsSection from './_components/landing/teams-section';
+import AthletesSection from './_components/landing/athletes-section';
 import { Footer } from './_components/landing/footer';
 
 export default function LandingPage() {
@@ -23,73 +13,8 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {/* Hero Section */}
-      <section id="inicio" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Column */}
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <h1 className="text-4xl sm:text-5xl font-bold text-foreground leading-tight">
-                  Gestión centralizada de torneos de powerlifting
-                </h1>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  La ACP utiliza este sistema para organizar torneos de forma
-                  eficiente. Los equipos pueden inscribir atletas de manera
-                  ordenada, y el administrador controla preliminares y listados
-                  oficiales desde una plataforma única.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/admin/login" className={buttonVariants({ size: "lg", variant: "outline", className: "hover:bg-secondary hover:text-secondary-foreground" })}>
-                  Entrar como administrador
-                </Link>
-                <Link href="/team/login" className={buttonVariants({ size: "lg", variant: "outline", className: "hover:bg-primary" })}>
-                  Entrar como equipo
-                </Link>
-              </div>
-            </div>
-
-            {/* Right Column - Dashboard Preview */}
-            <div className="hidden lg:flex justify-center">
-              <Card className="w-full max-w-sm border-primary/20 shadow-lg">
-                <CardHeader className="bg-linear-to-r from-primary/5 to-secondary/10 border-b border-border">
-                  <CardTitle className="text-primary">
-                    Próximo torneo
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  <div>
-                    <h3 className="font-bold text-lg text-foreground">
-                      Campeonato Provincial 2025
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Centro de Convenciones, Córdoba
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 pt-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <CalendarIcon className="h-4 w-4 text-primary" />
-                      <span>15 - 16 de Febrero, 2025</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <UsersIcon className="h-4 w-4 text-primary" />
-                      <span>24 equipos inscriptos</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-4">
-                    <Badge className="bg-primary text-primary-foreground">
-                      Preliminar abierta
-                    </Badge>
-                    <Badge variant="outline">Fase: Inscripción</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Section with Video */}
+      <HeroVideo />
 
       {/* For Whom Section */}
       <SegmentsSection />
@@ -99,6 +24,12 @@ export default function LandingPage() {
 
       {/* Upcoming Tournaments Section */}
       <UpcomingTournamentsSection />
+
+      {/* Teams Section */}
+      <TeamsSection />
+
+      {/* Athletes Section */}
+      <AthletesSection />
 
       {/* Contact Section */}
       <section id="contacto" className="py-20 px-4 sm:px-6 lg:px-8">

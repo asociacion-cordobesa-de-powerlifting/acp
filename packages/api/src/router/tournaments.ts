@@ -1,5 +1,5 @@
 import { tournament, user, event, athlete, registrations } from "@acme/db/schema";
-import { adminProcedure, protectedProcedure } from "../trpc";
+import { adminProcedure, protectedProcedure, publicProcedure } from "../trpc";
 import { or, ne, eq, desc, and, sql, not, isNull } from "@acme/db";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { tournamentValidator, eventValidator, baseEventSchema } from "@acme/shared/validators";
@@ -8,6 +8,20 @@ import { cleanAndLowercase, generateShortId } from '@acme/shared'
 
 
 export const tournamentsRouter = {
+
+    // Public endpoint - no auth required
+    publicList: publicProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.query.event.findMany({
+                where: isNull(event.deletedAt),
+                orderBy: [desc(event.startDate)],
+                with: {
+                    tournaments: {
+                        where: isNull(tournament.deletedAt),
+                    }
+                }
+            });
+        }),
 
     allEvents: protectedProcedure
         .query(async ({ ctx }) => {
