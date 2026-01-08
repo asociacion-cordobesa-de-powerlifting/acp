@@ -86,7 +86,7 @@ export function BulkRegistrationDialog({
         if (!a) return
 
         // Default weight class: first eligible one
-        const eligible = getEligibleWeightClasses(a.gender as any, a.birthYear, tournament.division as any)
+        const eligible = getEligibleWeightClasses(a.gender as any, a.birthYear)
 
         setSelectedEntries([...selectedEntries, {
             athleteId,

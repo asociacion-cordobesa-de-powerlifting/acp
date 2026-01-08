@@ -40,7 +40,7 @@ import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { dayjs } from "@acme/shared/libs"
 import { EyeIcon, UserPlusIcon, UsersIcon } from "@acme/ui/icons"
-import { BulkRegistrationDialog } from "../../_components/bulk-registration-dialog"
+// import { BulkRegistrationDialog } from "../../_components/bulk-registration-dialog"
 import { EventNominationDialog } from "./event-nomination-dialog"
 
 type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
@@ -74,11 +74,11 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <BulkRegistrationDialog
+            {/* <BulkRegistrationDialog
                 tournament={tournament}
                 open={showBulkDialog}
                 onOpenChange={setShowBulkDialog}
-            />
+            /> */}
         </>
     )
 }
@@ -165,7 +165,7 @@ function EventRow({
                                                         >
                                                             {statusLabel}
                                                         </Badge>
-                                                        <TournamentActions tournament={t} />
+                                                        {/* <TournamentActions tournament={t} /> */}
                                                     </div>
                                                 </div>
                                             );

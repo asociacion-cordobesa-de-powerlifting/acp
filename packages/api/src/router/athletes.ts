@@ -1,12 +1,13 @@
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { protectedProcedure, adminProcedure } from "../trpc";
+import { protectedProcedure, adminProcedure, publicProcedure } from "../trpc";
 import { athlete, teamData } from "@acme/db/schema";
 import { eq, desc, and, isNull } from "@acme/db";
 import { athleteValidator } from "@acme/shared/validators";
 
 export const athletesRouter = {
+
     list: protectedProcedure.query(async ({ ctx }) => {
         // 1. Get the teamId associated with the current user
         const team = await ctx.db.query.teamData.findFirst({
