@@ -70,13 +70,14 @@ export function EventNominationManager({
     // Use standard query options
     const { data: athletes = [], isLoading: isLoadingAthletes } = useQuery(trpc.athletes.list.queryOptions())
     const { data: registrations = [], isLoading: isLoadingRegistrations } = useQuery(trpc.registrations.byTeam.queryOptions())
-    
+
     const isLoading = isLoadingAthletes || isLoadingRegistrations
 
     const [localNominations, setLocalNominations] = useState<Record<string, NominationEntry>>({})
     const [globalFilter, setGlobalFilter] = useState("")
     const [sorting, setSorting] = useState<SortingState>([{ id: "fullName", desc: false }])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+    const [hideRegistered, setHideRegistered] = useState(false)
 
     // Track last event ID to reset state when event changes
     const lastEventIdRef = useRef<string>(event.id)
@@ -300,7 +301,18 @@ export function EventNominationManager({
     const updateNomination = (athleteId: string, updates: Partial<NominationEntry>) => {
         setLocalNominations(prev => {
             const current = prev[athleteId]
-            if (!current || current.isApproved) return prev
+            if (!current) return prev
+
+            // For approved athletes, only allow weight class changes
+            if (current.isApproved) {
+                if (updates.weightClass && Object.keys(updates).length === 1) {
+                    return {
+                        ...prev,
+                        [athleteId]: { ...current, weightClass: updates.weightClass }
+                    }
+                }
+                return prev // Block other updates for approved athletes
+            }
 
             const newNom = { ...current, ...updates }
 
@@ -430,6 +442,12 @@ export function EventNominationManager({
         })
     }, [athletes, localNominations, event.tournaments])
 
+    // Apply hideRegistered filter
+    const filteredTableData = useMemo(() => {
+        if (!hideRegistered) return tableData
+        return tableData.filter(a => !a.entry)
+    }, [tableData, hideRegistered])
+
     const columnHelper = createColumnHelper<typeof tableData[number]>()
 
     const columns = useMemo(() => [
@@ -466,10 +484,10 @@ export function EventNominationManager({
                 const a = row.original
                 const entry = a.entry
                 const isRejected = entry?.isRejected ?? false
-                const hasPartialRejection = entry?.divisionMode === "both" && 
+                const hasPartialRejection = entry?.divisionMode === "both" &&
                     ((entry.divisionStatus === "rejected" && entry.openStatus !== "rejected") ||
-                     (entry.openStatus === "rejected" && entry.divisionStatus !== "rejected"))
-                
+                        (entry.openStatus === "rejected" && entry.divisionStatus !== "rejected"))
+
                 return (
                     <div className="flex flex-col">
                         <span className={`font-semibold ${isRejected || hasPartialRejection ? "text-destructive" : ""}`}>
@@ -535,6 +553,12 @@ export function EventNominationManager({
                 // If current modality is not available, don't show the select (shouldn't happen but safety check)
                 if (!availableModalities.includes(currentModality)) return null
 
+                // If only one option, show plain text
+                if (availableModalities.length === 1) {
+                    const label = MODALITIES.find(m => m.value === currentModality)?.label ?? currentModality
+                    return <span className="text-xs text-muted-foreground">{label}</span>
+                }
+
                 return (
                     <Select
                         disabled={a.entry.isApproved}
@@ -569,6 +593,12 @@ export function EventNominationManager({
                 // If current equipment is not available, don't show the select (shouldn't happen but safety check)
                 if (!availableEquipment.includes(currentEquipment)) return null
 
+                // If only one option, show plain text
+                if (availableEquipment.length === 1) {
+                    const label = EQUIPMENT.find(e => e.value === currentEquipment)?.label ?? currentEquipment
+                    return <span className="text-xs text-muted-foreground">{label}</span>
+                }
+
                 return (
                     <Select
                         disabled={a.entry.isApproved}
@@ -594,10 +624,19 @@ export function EventNominationManager({
             header: "Categoría",
             cell: ({ row }) => {
                 const a = row.original
-                const eligibleWeights = a.matched ? getEligibleWeightClasses(a.plainAthlete, a.matched) : []
+                if (!a.entry || !a.matched) return null
+
+                const eligibleWeights = getEligibleWeightClasses(a.plainAthlete, a.matched)
+
+                // If only one option, show plain text
+                if (eligibleWeights.length === 1) {
+                    const label = WEIGHT_CLASSES.find(wc => wc.value === eligibleWeights[0])?.label ?? eligibleWeights[0]
+                    return <span className="text-xs text-muted-foreground">{label}</span>
+                }
+
                 return (
                     <Select
-                        disabled={!a.entry || a.entry.isApproved || !a.matched}
+                        disabled={!a.entry || !a.matched}
                         value={a.entry?.weightClass || ""}
                         onValueChange={(val) => updateNomination(a.id, { weightClass: val })}
                     >
@@ -652,7 +691,7 @@ export function EventNominationManager({
                     // Only one option, show as text
                     const singleOption = options[0]
                     if (!singleOption) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
-                    return <span className="text-[9px] text-muted-foreground text-center">{singleOption.label}</span>
+                    return <span className="text-xs text-muted-foreground text-center">{singleOption.label}</span>
                 }
 
                 return (
@@ -688,7 +727,7 @@ export function EventNominationManager({
     ], [localNominations, event.tournaments, athletes])
 
     const table = useReactTable({
-        data: tableData,
+        data: filteredTableData,
         columns,
         state: {
             globalFilter,
@@ -865,6 +904,16 @@ export function EventNominationManager({
                             ))}
                         </SelectContent>
                     </Select>
+
+                    <div className="flex items-center gap-2 ml-2 pl-2 border-l border-muted-foreground/20">
+                        <Switch
+                            checked={hideRegistered}
+                            onCheckedChange={setHideRegistered}
+                            //@ts-ignore
+                            size="sm"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Ocultar inscriptos</span>
+                    </div>
                 </div>
             </div>
 
@@ -922,7 +971,7 @@ export function EventNominationManager({
 
             <div className="flex items-center justify-between w-full border-t pt-4 mt-auto">
                 <div className="text-muted-foreground text-xs">
-                    * Los atletas con estados <span className="text-accent font-bold underline">aprobado</span> no pueden ser modificados.
+                    * Solo la <span className="text-accent font-bold underline">categoría de peso</span> puede ser modificada para atletas aprobados.
                 </div>
                 <div className="flex gap-3">
                     {onClose && (

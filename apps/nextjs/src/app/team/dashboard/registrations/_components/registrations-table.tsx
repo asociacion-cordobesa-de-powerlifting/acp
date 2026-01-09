@@ -199,7 +199,10 @@ export function RegistrationsDataTable() {
             cell: ({ row }) => {
                 const status = row.original.status;
                 return <Badge variant={status === "pending" ? "accent" : status === "approved" ? "default" : "secondary"}>{getLabelFromValue(status, REGISTRATION_STATUS)}</Badge>
-            }
+            },
+            filterFn: (row, id, value) => {
+                return value.includes(row.original.status)
+            },
         },
         {
             id: 'actions',
@@ -281,6 +284,13 @@ export function RegistrationsDataTable() {
                         column={table.getColumn("modality")}
                         title="Modalidad"
                         options={MODALITIES}
+                    />
+
+                    {/* Registration Status Filter */}
+                    <DataTableFacetedFilter
+                        column={table.getColumn("status")}
+                        title="Estado Inscripción"
+                        options={REGISTRATION_STATUS}
                     />
                 </div>
             </div>

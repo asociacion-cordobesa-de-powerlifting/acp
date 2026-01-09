@@ -75,7 +75,7 @@ export const MODALITIES: Selection<ModalityEnum>[] = [
 ]
 
 export const EQUIPMENT: Selection<EquipmentEnum>[] = [
-    { label: "Raw", value: "classic" },
+    { label: "Classic", value: "classic" },
     { label: "Equipped", value: "equipped" },
 ]
 
