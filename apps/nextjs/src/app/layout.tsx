@@ -10,10 +10,80 @@ import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/app/styles.css";
 
+const siteUrl = env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: 'ACP - Asociación Cordobesa de Powerlifting',
-  description: 'Plataforma oficial de gestión de torneos de powerlifting. Administra competiciones, inscripciones y nóminas de forma centralizada.',
-  generator: 'v0.app',
+  title: {
+    template: '%s | ACP',
+    default: 'ACP - Asociación Cordobesa de Powerlifting',
+  },
+  description: 'Plataforma oficial de gestión de torneos de powerlifting de Córdoba. Inscripciones, nóminas preliminares y resultados de competencias.',
+  generator: 'Next.js',
+  applicationName: 'ACP - Asociación Cordobesa de Powerlifting',
+  referrer: 'origin-when-cross-origin',
+  keywords: [
+    'powerlifting',
+    'córdoba',
+    'argentina',
+    'torneos',
+    'competencias',
+    'fuerza',
+    'ACP',
+    'FALPO',
+    'IPF',
+    'sentadilla',
+    'press banca',
+    'peso muerto',
+  ],
+  authors: [{ name: 'Asociación Cordobesa de Powerlifting' }],
+  creator: 'ACP',
+  publisher: 'Asociación Cordobesa de Powerlifting',
+  formatDetection: {
+    email: true,
+    address: true,
+    telephone: true,
+  },
+  metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'ACP - Asociación Cordobesa de Powerlifting',
+    description: 'Plataforma oficial de gestión de torneos de powerlifting de Córdoba. Inscripciones abiertas para atletas y equipos.',
+    url: siteUrl,
+    siteName: 'ACP',
+    locale: 'es_AR',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 630,
+        height: 630,
+        alt: 'ACP - Asociación Cordobesa de Powerlifting',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ACP - Asociación Cordobesa de Powerlifting',
+    description: 'Plataforma oficial de gestión de torneos de powerlifting de Córdoba.',
+    images: ['/og-image.jpg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   icons: {
     icon: [
       {
@@ -31,7 +101,8 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
-}
+  category: 'sports',
+};
 
 export const viewport: Viewport = {
   themeColor: [
@@ -57,7 +128,7 @@ const robotoMono = Roboto_Mono({
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body
         className={cn(
           "bg-background text-foreground min-h-screen font-sans antialiased",
@@ -67,11 +138,11 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         )}
       >
         {/* <ThemeProvider> */}
-          <TRPCReactProvider>{props.children}</TRPCReactProvider>
-          {/* <div className="absolute right-4 bottom-4">
+        <TRPCReactProvider>{props.children}</TRPCReactProvider>
+        {/* <div className="absolute right-4 bottom-4">
             <ThemeToggle />
           </div> */}
-          <Toaster />
+        <Toaster />
         {/* </ThemeProvider> */}
       </body>
     </html>

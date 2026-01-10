@@ -5,13 +5,13 @@ import { TableSkeleton } from '~/app/_components/skeletons'
 import { TournamentsDataTable } from './_components/tournaments-table'
 
 export default function TournamentsPage() {
-  void prefetch(trpc.tournaments.list.queryOptions())
+  void prefetch(trpc.tournaments.allEvents.queryOptions())
   return (
     <HydrateClient>
       <DashboardPageLayout
         title="Torneos"
         description="Gestión de torneos"
-        // actions={<CreateTournamentDialog />}
+      // actions={<CreateTournamentDialog />}
       >
         <Suspense fallback={<TableSkeleton />}>
           <TournamentsDataTable />

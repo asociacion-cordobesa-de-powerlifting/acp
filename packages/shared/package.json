@@ -13,7 +13,7 @@
     },
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
+            "types": "./src/index.ts",
             "default": "./src/index.ts"
         },
         "./libs": "./src/lib/index.ts",

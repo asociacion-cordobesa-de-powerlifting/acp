@@ -11,7 +11,7 @@ import {
     type SortingState,
     type ColumnFiltersState,
 } from "@tanstack/react-table"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
     Table,
     TableBody,
@@ -20,6 +20,11 @@ import {
     TableHeader,
     TableRow,
 } from "@acme/ui/table"
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger
+} from "@acme/ui/collapsible"
 import { Button } from "@acme/ui/button"
 import { Input } from "@acme/ui/input"
 import {
@@ -28,17 +33,18 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
-import { ChevronDown, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Pencil, Trash2, Calendar, MapPin, Users, Upload, Loader2 } from "lucide-react"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
 import { DataTablePagination } from "~/app/_components/table/pagination"
-import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 import { RouterOutputs } from "@acme/api"
-import { TOURNAMENT_STATUS, ATHLETE_DIVISION, EVENTS, EQUIPMENT } from "@acme/shared/constants"
+import { TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { dayjs } from "@acme/shared/libs"
-import { EditTournamentDialog } from "./edit-tournament-dialog"
 import { toast } from "@acme/ui/toast"
+import { EditEventDialog } from "./edit-event-dialog"
+import { EditTournamentStatusDialog } from "./edit-tournament-status-dialog"
+import { useRouter } from "next/navigation"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -50,20 +56,127 @@ import {
     AlertDialogTitle,
 } from "@acme/ui/alert-dialog"
 
-// Helper type for Tournament
-type Tournament = RouterOutputs["tournaments"]["list"][number]
+type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
+type Tournament = EventWithTournaments["tournaments"][number]
 
 function TournamentActions({ tournament }: { tournament: Tournament }) {
+    const [openEdit, setOpenEdit] = useState(false)
+
+    return (
+        <>
+            <EditTournamentStatusDialog
+                tournament={tournament}
+                open={openEdit}
+                onOpenChange={setOpenEdit}
+            />
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenEdit(true)
+                }}
+            >
+                <Pencil className="h-3 w-3" />
+            </Button>
+        </>
+    )
+}
+
+function EventRow({
+    row,
+    columns
+}: {
+    row: any,
+    columns: ColumnDef<EventWithTournaments>[]
+}) {
+    const [isOpen, setIsOpen] = useState(false)
+    const event = row.original as EventWithTournaments
+    const hasTournaments = event.tournaments && event.tournaments.length > 0
+
+    return (
+        <Collapsible
+            asChild
+            open={isOpen}
+            onOpenChange={setIsOpen}
+        >
+            <TableBody className="[&_tr:last-child]:border-b">
+                <TableRow
+                    data-state={row.getIsSelected() && "selected"}
+                    className={hasTournaments ? "cursor-pointer" : ""}
+                    onClick={() => hasTournaments && setIsOpen(!isOpen)}
+                >
+                    {row.getVisibleCells().map((cell: any) => (
+                        <TableCell key={cell.id}>
+                            {cell.column.id === 'name' && hasTournaments && (
+                                <ChevronDown className={`mr-2 h-4 w-4 inline transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                    ))}
+                </TableRow>
+                {hasTournaments && (
+                    <CollapsibleContent asChild>
+                        <TableRow className="bg-muted/50">
+                            <TableCell colSpan={columns.length} className="p-0 border-b-0">
+                                <div className="px-12 py-2 space-y-1">
+                                    {event.tournaments.map((t) => {
+                                        const modalityLabel = MODALITIES.find(m => m.value === t.modality)?.label ?? t.modality;
+                                        const equipmentLabel = EQUIPMENT.find(e => e.value === t.equipment)?.label ?? t.equipment;
+                                        const divisionLabel = TOURNAMENT_DIVISION.find(d => d.value === t.division)?.label ?? t.division;
+                                        const statusLabel = TOURNAMENT_STATUS.find(s => s.value === t.status)?.label ?? t.status;
+
+                                        return (
+                                            <div
+                                                key={t.id}
+                                                className="flex items-center justify-between py-1 border-b border-dashed last:border-0"
+                                            >
+                                                <div className="flex items-center gap-2 text-[11px] font-medium">
+                                                    <span>{event.name}</span>
+                                                    <span className="text-muted-foreground">-</span>
+                                                    <span>{modalityLabel}</span>
+                                                    <span className="text-muted-foreground">•</span>
+                                                    <span>{equipmentLabel}</span>
+                                                    <span className="text-muted-foreground">•</span>
+                                                    <span>{divisionLabel}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge
+                                                        variant={t.status === 'finished' ? 'secondary' : t.status === "preliminary_closed" ? "accent" : "default"}
+                                                        className="text-[9px] h-4 px-1.5 uppercase tracking-wider"
+                                                    >
+                                                        {statusLabel}
+                                                    </Badge>
+                                                    <TournamentActions tournament={t} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    </CollapsibleContent>
+                )}
+            </TableBody>
+        </Collapsible>
+    )
+}
+
+function EventActions({ event }: { event: EventWithTournaments }) {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
-    const [openEdit, setOpenEdit] = useState(false)
     const [openDelete, setOpenDelete] = useState(false)
+    const [openEdit, setOpenEdit] = useState(false)
+    const [isUploadingResults, setIsUploadingResults] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const router = useRouter()
 
-    const deleteTournament = useMutation(
-        trpc.tournaments.delete.mutationOptions({
+    const deleteEvent = useMutation(
+        trpc.tournaments.deleteEvent.mutationOptions({
             onSuccess: async () => {
-                toast.success("Torneo eliminado exitosamente")
-                await queryClient.invalidateQueries(trpc.tournaments.list.pathFilter())
+                toast.success("Evento eliminado exitosamente")
+                await queryClient.invalidateQueries(trpc.tournaments.allEvents.pathFilter())
                 setOpenDelete(false)
             },
             onError: (err) => {
@@ -72,52 +185,114 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
         })
     )
 
+    const handleResultsUpload = async (file: File) => {
+        setIsUploadingResults(true)
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('eventId', event.id)
+
+            const response = await fetch('/api/storage/results', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (!response.ok) {
+                throw new Error('Upload failed')
+            }
+
+            toast.success('Resultados subidos exitosamente')
+            await queryClient.invalidateQueries(trpc.tournaments.allEvents.pathFilter())
+        } catch (err) {
+            toast.error('Error subiendo resultados')
+        } finally {
+            setIsUploadingResults(false)
+        }
+    }
+
     return (
         <>
-            <EditTournamentDialog
-                open={openEdit}
-                onOpenChange={setOpenEdit}
-                tournament={tournament}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleResultsUpload(file)
+                    e.target.value = ''
+                }}
             />
+
             <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro de eliminar este torneo?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Estás seguro de eliminar este evento?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el torneo "{tournament.name}" y todos sus datos asociados.
+                            Esta acción eliminará el evento "{event.name}" y todas sus modalidades asociadas. No se puede deshacer.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={() => deleteTournament.mutate({ id: tournament.id })}
+                            onClick={() => deleteEvent.mutate({ id: event.id })}
                             className="bg-destructive hover:bg-destructive/90"
-                            disabled={deleteTournament.isPending}
+                            disabled={deleteEvent.isPending}
                         >
-                            Eliminar
+                            Eliminar Evento
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
+            <EditEventDialog
+                event={event}
+                open={openEdit}
+                onOpenChange={setOpenEdit}
+            />
+
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Abrir menú</span>
                         <MoreHorizontal className="h-4 w-4" />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+                    <DropdownMenuItem
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/admin/dashboard/registrations?eventId=${event.id}`)
+                        }}
+                    >
+                        <Users className="mr-2 h-4 w-4" />
+                        Ver Inscriptos
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => setOpenEdit(true)}
+                    >
                         <Pencil className="mr-2 h-4 w-4" />
-                        Editar
+                        Editar Evento
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            fileInputRef.current?.click()
+                        }}
+                        disabled={isUploadingResults}
+                    >
+                        {isUploadingResults ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Upload className="mr-2 h-4 w-4" />
+                        )}
+                        {event.resultsUrl ? 'Resubir Resultados' : 'Subir Resultados'}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setOpenDelete(true)}
                         className="text-red-600 focus:text-red-600"
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar
+                        Eliminar Evento
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -127,119 +302,60 @@ function TournamentActions({ tournament }: { tournament: Tournament }) {
 
 export function TournamentsDataTable() {
     const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [globalFilter, setGlobalFilter] = useState("")
     const trpc = useTRPC();
 
-    const { data: tournaments = [], isLoading } = useSuspenseQuery(trpc.tournaments.all.queryOptions());
+    const { data: events = [], isLoading } = useSuspenseQuery(
+        trpc.tournaments.allEvents.queryOptions()
+    );
 
-    const columns: ColumnDef<Tournament>[] = [
+    const columns: ColumnDef<EventWithTournaments>[] = [
         {
             accessorKey: 'name',
-            header: ({ column }) => {
-                return (
-                    <Button
-                        variant="ghost"
-                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                    >
-                        Nombre
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                )
-            },
-        },
-        {
-            accessorKey: 'division',
-            header: 'División',
-            cell: ({ row }) => {
-                const division = row.original.division
-                const label = ATHLETE_DIVISION.find((d) => d.value === division)?.label ?? division
-                return <Badge variant="secondary">{label}</Badge>
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
-            },
-        },
-        {
-            accessorKey: 'event',
-            header: 'Evento',
-            cell: ({ row }) => {
-                const event = row.original.event
-                const label = EVENTS.find((e) => e.value === event)?.label ?? event
-                return <Badge variant="secondary">{label}</Badge>
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
-            },
-        },
-        {
-            accessorKey: 'equipment',
-            header: 'Equipo',
-            cell: ({ row }) => {
-                const equipment = row.original.equipment
-                const label = EQUIPMENT.find((e) => e.value === equipment)?.label ?? equipment
-                return <Badge variant="secondary">{label}</Badge>
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
-            },
+            header: 'Nombre del Evento',
+            cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>
         },
         {
             accessorKey: 'venue',
-            header: 'Sede',
-        },
-        {
-            accessorKey: 'location',
-            header: 'Ubicación',
+            header: 'Sede/Location',
+            cell: ({ row }) => (
+                <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span>{row.original.venue}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground pl-4">{row.original.location}</span>
+                </div>
+            )
         },
         {
             accessorKey: 'startDate',
-            header: 'Fecha Inicio',
-            cell: ({ row }) => {
-                const val = row.original.startDate
-                return val ? dayjs(val).format('DD/MM/YYYY') : ""
-            },
-        },
-        {
-            accessorKey: 'endDate',
-            header: 'Fecha Fin',
-            cell: ({ row }) => {
-                const val = row.original.endDate
-                return val ? dayjs(val).format('DD/MM/YYYY') : ""
-            },
-        },
-        {
-            accessorKey: 'status',
-            header: 'Estado',
-            cell: ({ row }) => {
-                const status = row.original.status
-                const label = TOURNAMENT_STATUS.find((s) => s.value === status)?.label ?? status
-                return <Badge variant={status === "draft" ? "outline" : "default"}>{label}</Badge>
-            },
-            filterFn: (row, id, value) => {
-                return value.includes(row.getValue(id))
-            },
+            header: 'Fechas',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2 text-xs">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    <span>{dayjs(row.original.startDate).format('DD/MM')} - {dayjs(row.original.endDate).format('DD/MM/YYYY')}</span>
+                </div>
+            )
         },
         {
             id: 'actions',
             header: 'Acciones',
-            cell: ({ row }) => <TournamentActions tournament={row.original} />
+            cell: ({ row }) => <EventActions event={row.original} />
         }
     ]
 
     const table = useReactTable({
-        data: tournaments,
+        data: events,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
         onGlobalFilterChange: setGlobalFilter,
         state: {
             sorting,
-            columnFilters,
             globalFilter,
         },
     })
@@ -248,15 +364,10 @@ export function TournamentsDataTable() {
         <div className="space-y-4">
             <div className="flex items-center gap-3">
                 <Input
-                    placeholder="Buscar torneos..."
+                    placeholder="Buscar eventos..."
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                     className="max-w-sm"
-                />
-                <DataTableFacetedFilter
-                    column={table.getColumn("status")}
-                    title="Estado"
-                    options={TOURNAMENT_STATUS}
                 />
             </div>
             <div className="rounded-md border bg-card">
@@ -264,49 +375,44 @@ export function TournamentsDataTable() {
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => {
-                                    return (
-                                        <TableHead key={header.id}>
-                                            {header.isPlaceholder
-                                                ? null
-                                                : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
-                                        </TableHead>
-                                    )
-                                })}
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id}>
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext()
+                                            )}
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         ))}
                     </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
+                    {isLoading ? (
+                        <TableBody>
                             <TableRow>
                                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    Cargando torneos...
+                                    Cargando eventos...
                                 </TableCell>
                             </TableRow>
-                        ) : table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={row.getIsSelected() && "selected"}
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        ) : (
+                        </TableBody>
+                    ) : table.getRowModel().rows.length ? (
+                        table.getRowModel().rows.map((row) => (
+                            <EventRow
+                                key={row.id}
+                                row={row}
+                                columns={columns}
+                            />
+                        ))
+                    ) : (
+                        <TableBody>
                             <TableRow>
                                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No se encontraron torneos.
+                                    No se encontraron eventos.
                                 </TableCell>
                             </TableRow>
-                        )}
-                    </TableBody>
+                        </TableBody>
+                    )}
                 </Table>
             </div>
             <DataTablePagination table={table} />

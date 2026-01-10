@@ -42,7 +42,7 @@ interface NavItem {
 const items: NavItem[] = [
     {
         title: "General",
-        url: "/admin/dashboard",
+        url: "/team/dashboard",
         icon: HouseIcon,
     },
     {
@@ -87,7 +87,7 @@ export function TeamSidebar({
                 >
                     <div className="relative">
                         <div className="flex aspect-square size-8 items-center justify-center rounded-full text-sidebar-primary-foreground">
-                            <Image src={'/logo.webp'} alt={"Asociación Cordobesa de Powerlifting Logo"} height={30} width={30} className="rounded-full" />
+                            <Image src={'/acp.webp'} alt={"Asociación Cordobesa de Powerlifting Logo"} height={30} width={30} className="rounded-full" />
                         </div>
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">

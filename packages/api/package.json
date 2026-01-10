@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "default": "./src/index.ts"
     }
   },
@@ -21,6 +21,7 @@
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
     "@acme/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.49.1",
     "@trpc/server": "catalog:",
     "superjson": "2.2.3",
     "zod": "catalog:"

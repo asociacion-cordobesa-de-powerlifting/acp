@@ -6,7 +6,7 @@ import { TableSkeleton } from '~/app/_components/skeletons'
 import { TournamentsDataTable } from './_components/tournaments-table'
 
 export default function TournamentsPage() {
-  void prefetch(trpc.tournaments.all.queryOptions())
+  void prefetch(trpc.tournaments.allEvents.queryOptions())
   return (
     <HydrateClient>
       <DashboardPageLayout

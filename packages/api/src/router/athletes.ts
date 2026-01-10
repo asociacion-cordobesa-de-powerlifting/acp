@@ -1,16 +1,43 @@
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { protectedProcedure } from "../trpc";
-import { athlete, teamData } from "@acme/db/schema";
-import { eq, desc, and } from "@acme/db";
+import { protectedProcedure, adminProcedure, publicProcedure } from "../trpc";
+import { athlete, teamData, user } from "@acme/db/schema";
+import { eq, desc, and, isNull } from "@acme/db";
 import { athleteValidator } from "@acme/shared/validators";
 
 export const athletesRouter = {
+
+    // Public endpoint - no auth required, excludes sensitive data
+    publicList: publicProcedure
+        .query(async ({ ctx }) => {
+            const athletes = await ctx.db.query.athlete.findMany({
+                where: isNull(athlete.deletedAt),
+                with: {
+                    team: {
+                        with: { user: true }
+                    }
+                },
+                orderBy: [desc(athlete.createdAt)],
+            });
+
+            // Return only public info (no DNI)
+            return athletes.map(a => ({
+                id: a.id,
+                fullName: a.fullName,
+                birthYear: a.birthYear,
+                gender: a.gender,
+                teamName: a.team.user.name,
+                squatBestKg: a.squatBestKg,
+                benchBestKg: a.benchBestKg,
+                deadliftBestKg: a.deadliftBestKg,
+            }));
+        }),
+
     list: protectedProcedure.query(async ({ ctx }) => {
         // 1. Get the teamId associated with the current user
         const team = await ctx.db.query.teamData.findFirst({
-            where: eq(teamData.userId, ctx.session.user.id)
+            where: and(eq(teamData.userId, ctx.session.user.id), isNull(teamData.deletedAt))
         });
 
         if (!team) {
@@ -20,7 +47,7 @@ export const athletesRouter = {
 
         // 2. Fetch athletes for this team
         return ctx.db.query.athlete.findMany({
-            where: eq(athlete.teamId, team.id),
+            where: and(eq(athlete.teamId, team.id), isNull(athlete.deletedAt)),
             orderBy: [desc(athlete.createdAt)],
         });
     }),
@@ -30,7 +57,7 @@ export const athletesRouter = {
         .mutation(async ({ ctx, input }) => {
             // 1. Get the teamId
             const team = await ctx.db.query.teamData.findFirst({
-                where: eq(teamData.userId, ctx.session.user.id)
+                where: and(eq(teamData.userId, ctx.session.user.id), isNull(teamData.deletedAt))
             });
 
             if (!team) {
@@ -54,7 +81,7 @@ export const athletesRouter = {
             const { id, ...data } = input;
 
             const team = await ctx.db.query.teamData.findFirst({
-                where: eq(teamData.userId, ctx.session.user.id)
+                where: and(eq(teamData.userId, ctx.session.user.id), isNull(teamData.deletedAt))
             });
 
             if (!team) {
@@ -68,7 +95,8 @@ export const athletesRouter = {
             const existing = await ctx.db.query.athlete.findFirst({
                 where: and(
                     eq(athlete.id, id),
-                    eq(athlete.teamId, team.id)
+                    eq(athlete.teamId, team.id),
+                    isNull(athlete.deletedAt)
                 )
             });
 
@@ -79,18 +107,16 @@ export const athletesRouter = {
                 });
             }
 
-            console.log("Updating athlete:", id, data);
             await ctx.db.update(athlete).set(data).where(eq(athlete.id, id));
 
-            console.log("Updated athlete, returning existing:", existing);
-            return existing; // returning old data or just success is ok? Client usually invalidates.
+            return existing;
         }),
 
     delete: protectedProcedure
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
             const team = await ctx.db.query.teamData.findFirst({
-                where: eq(teamData.userId, ctx.session.user.id)
+                where: and(eq(teamData.userId, ctx.session.user.id), isNull(teamData.deletedAt))
             });
 
             if (!team) {
@@ -103,7 +129,8 @@ export const athletesRouter = {
             const existing = await ctx.db.query.athlete.findFirst({
                 where: and(
                     eq(athlete.id, input.id),
-                    eq(athlete.teamId, team.id)
+                    eq(athlete.teamId, team.id),
+                    isNull(athlete.deletedAt)
                 )
             });
 
@@ -114,6 +141,23 @@ export const athletesRouter = {
                 });
             }
 
-            await ctx.db.delete(athlete).where(eq(athlete.id, input.id));
+            await ctx.db.update(athlete).set({ deletedAt: new Date() }).where(eq(athlete.id, input.id));
+        }),
+
+    listAll: adminProcedure
+        .input(z.object({ teamId: z.string().uuid().optional() }).optional())
+        .query(async ({ ctx, input }) => {
+            if (input?.teamId) {
+                return ctx.db.query.athlete.findMany({
+                    where: and(eq(athlete.teamId, input.teamId), isNull(athlete.deletedAt)),
+                    with: { team: { with: { user: true } } },
+                    orderBy: [desc(athlete.createdAt)],
+                });
+            }
+            return ctx.db.query.athlete.findMany({
+                where: isNull(athlete.deletedAt),
+                with: { team: { with: { user: true } } },
+                orderBy: [desc(athlete.createdAt)],
+            });
         }),
 } satisfies TRPCRouterRecord;

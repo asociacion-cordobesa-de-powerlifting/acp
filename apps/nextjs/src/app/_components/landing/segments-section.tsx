@@ -22,13 +22,13 @@ const segments = [
   {
     title: 'Equipos y entrenadores',
     description:
-      'Inscribe atletas, carga openers y revisa inscripciones en tiempo real.',
+      'Gestiona atletas e inscripciones en tiempo real.',
     icon: UsersIcon,
   },
   {
     title: 'Atletas',
     description:
-      'Consulta torneos disponibles, resultados en PDF e información oficial.',
+      'Consulta torneos disponibles, atletas inscriptos e información oficial.',
     icon: DumbbellIcon,
   },
 ];

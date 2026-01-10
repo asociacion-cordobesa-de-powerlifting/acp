@@ -38,7 +38,7 @@ export const divisionEnum = pgEnum("division", [
   "master_4",
 ]);
 
-export const eventEnum = pgEnum("event", [
+export const modalityEnum = pgEnum("modality", [
   "full",
   "bench"
 ]);
@@ -52,6 +52,12 @@ export const tournamentStatusEnum = pgEnum("tournament_status", [
   "preliminary_open",
   "preliminary_closed",
   "finished",
+]);
+
+export const tournamentDivisionEnum = pgEnum("tournament_division", [
+  "juniors",
+  "open",
+  "masters"
 ]);
 
 export const registrationStatusEnum = pgEnum("registration_status", [
@@ -85,38 +91,50 @@ export const teamDataRelations = relations(teamData, ({ one, many }) => ({
   }),
 }));
 
-// Torneos
-export const tournament = pgTable("tournament", (t) => ({
+
+export const event = pgTable("event", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
-  name: t.text().notNull(),
+  shortId: t.varchar("short_id").notNull().unique(),
+  name: t.text().notNull(), // Ej: "Campeonato Nacional 2026"
   slug: t.text().notNull().unique(),
   venue: t.text().notNull(),
   location: t.text().notNull(),
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }).notNull(),
-  status: tournamentStatusEnum("status").notNull(),
-  division: divisionEnum("division").notNull().default("open"),
-  event: eventEnum("event").notNull().default("full"),
-  equipment: equipmentEnum("equipment").notNull().default("classic"),
-  maxAthletes: t.integer(),
+  resultsUrl: t.text('results_url'), // URL to results PDF in public bucket
+
   createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
+  updatedAt: t.timestamp().notNull().$onUpdate(() => new Date()),
   deletedAt: t.timestamp(),
-  parentId: t.uuid("parent_id").references((): any => tournament.id, { onDelete: "cascade" }),
+}));
+
+export const eventRelations = relations(event, ({ many }) => ({
+  tournaments: many(tournament),
+}));
+
+// Torneos
+export const tournament = pgTable("tournament", (t) => ({
+  id: t.uuid().primaryKey().defaultRandom(),
+  eventId: t.uuid("event_id").notNull().references(() => event.id, { onDelete: "cascade" }),
+  shortId: t.varchar("short_id").notNull().unique(),
+  slug: t.text().notNull().unique(),
+
+  // Atributos específicos de la modalidad
+  division: tournamentDivisionEnum("division").notNull().default("open"),
+  modality: modalityEnum("modality").notNull().default("full"),
+  equipment: equipmentEnum("equipment").notNull().default("classic"),
+  status: tournamentStatusEnum("status").notNull().default("preliminary_open"),
+
+  createdAt: t.timestamp().defaultNow().notNull(),
+  updatedAt: t.timestamp().notNull().$onUpdate(() => new Date()),
+  deletedAt: t.timestamp(),
 }));
 
 export const tournamentRelations = relations(tournament, ({ one, many }) => ({
-  // Relación con el Padre
-  parentTournament: one(tournament, {
-    fields: [tournament.parentId],
-    references: [tournament.id],
-    relationName: "hierarchy",
+  event: one(event, {
+    fields: [tournament.eventId],
+    references: [event.id],
   }),
-  // Relación con los Hijos (sub-eventos)
-  subEvents: many(tournament, {
-    relationName: "hierarchy"
-  }),
-  // Relación con las inscripciones
   registrations: many(registrations),
 }));
 
@@ -169,11 +187,9 @@ export const registrations = pgTable("registrations", (t) => ({
 
   weightClass: weightClassEnum("weight_class").notNull(),
 
-  squatOpenerKg: t.real(),
-  benchOpenerKg: t.real(),
-  deadliftOpenerKg: t.real(),
-
   status: registrationStatusEnum("status").notNull(),
+
+  paymentReceiptUrl: t.text("payment_receipt_url"),
 
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
@@ -200,7 +216,9 @@ export * from "./auth-schema";
 
 export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number]
 export type DivisionEnum = typeof divisionEnum.enumValues[number]
+export type TournamentDivisionEnum = typeof tournamentDivisionEnum.enumValues[number]
 export type WeightClassEnum = typeof weightClassEnum.enumValues[number]
-export type EventEnum = typeof eventEnum.enumValues[number]
+export type ModalityEnum = typeof modalityEnum.enumValues[number]
 export type EquipmentEnum = typeof equipmentEnum.enumValues[number]
 export type GenderEnum = typeof genderEnum.enumValues[number]
+export type RegistrationStatusEnum = typeof registrationStatusEnum.enumValues[number]

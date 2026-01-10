@@ -58,6 +58,7 @@ export function CreateTeamDialog() {
             },
             onError: (err) => {
                 toast.error(err.message)
+                console.error(err)
             },
         })
     )
