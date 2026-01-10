@@ -10,9 +10,7 @@ import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/app/styles.css";
 
-const siteUrl = env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : "http://localhost:3000";
+const siteUrl = process.env.BASE_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {

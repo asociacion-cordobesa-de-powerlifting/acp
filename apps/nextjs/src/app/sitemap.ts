@@ -4,9 +4,7 @@ import { event, tournament } from '@acme/db/schema';
 import { isNull } from '@acme/db';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-        : 'http://localhost:3000';
+    const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
 
     // Static pages
     const staticPages: MetadataRoute.Sitemap = [
