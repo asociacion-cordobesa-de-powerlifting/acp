@@ -54,7 +54,7 @@ export default function HeroVideo({
                     {/* Logo/Badge */}
                     <div className="mb-6 inline-flex items-center justify-center">
                         <span className="rounded-full bg-primary/20 px-4 py-2 text-sm font-medium text-primary backdrop-blur-sm border border-primary/30">
-                            🏋️ Federación Oficial
+                            🏋️ Asociación Oficial
                         </span>
                     </div>
 

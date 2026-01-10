@@ -8,6 +8,8 @@ export const baseEventSchema = z.object({
     location: z.string().min(3, "La ubicación debe tener al menos 3 caracteres"),
     startDate: z.date({ message: "La fecha de inicio es requerida" }),
     endDate: z.date({ message: "La fecha de fin es requerida" }),
+    descriptionAffiliates: z.string().optional().nullable(),
+    descriptionNonAffiliates: z.string().optional().nullable(),
 });
 
 export const eventValidator = baseEventSchema.refine((data) => !data.endDate || !data.startDate || data.endDate >= data.startDate, {

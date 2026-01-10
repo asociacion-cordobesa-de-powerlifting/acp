@@ -7,6 +7,7 @@ import { Toaster } from "@acme/ui/toast";
 
 import { env } from "~/env";
 import { TRPCReactProvider } from "~/trpc/react";
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 import "~/app/styles.css";
 
@@ -136,7 +137,11 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         )}
       >
         {/* <ThemeProvider> */}
-        <TRPCReactProvider>{props.children}</TRPCReactProvider>
+        <TRPCReactProvider>
+          <NuqsAdapter>
+            {props.children}
+          </NuqsAdapter>
+        </TRPCReactProvider>
         {/* <div className="absolute right-4 bottom-4">
             <ThemeToggle />
           </div> */}

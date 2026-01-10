@@ -1,17 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import {
-    ColumnDef,
-    flexRender,
-    getCoreRowModel,
-    useReactTable,
-    getPaginationRowModel,
-    getSortedRowModel,
-    getFilteredRowModel,
-    type SortingState,
-    type ColumnFiltersState,
-} from '@tanstack/react-table';
+import React, { useMemo } from 'react';
+import { useQueryState, parseAsString } from 'nuqs';
 import {
     Table,
     TableBody,
@@ -20,10 +10,14 @@ import {
     TableHeader,
     TableRow,
 } from '@acme/ui/table';
-import { Badge } from '@acme/ui/badge';
-import { Button } from '@acme/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@acme/ui/select';
 import { Input } from '@acme/ui/input';
-import { ChevronDown } from 'lucide-react';
 import {
     getLabelFromValue,
 } from '@acme/shared';
@@ -34,8 +28,6 @@ import {
     WEIGHT_CLASSES,
     ATHLETE_GENDER,
 } from '@acme/shared/constants';
-import { DataTableFacetedFilter } from '~/app/_components/table/faceted-filter';
-import { DataTablePagination } from '~/app/_components/table/pagination';
 
 interface Registration {
     id: string;
@@ -53,201 +45,277 @@ interface Registration {
         fullName: string;
         birthYear: number;
         gender: string;
+        squatBestKg: number;
+        benchBestKg: number;
+        deadliftBestKg: number;
     };
     teamName: string;
 }
 
-interface RegistrationsTableProps {
-    registrations: Registration[];
+interface Tournament {
+    id: string;
+    division: string;
+    modality: string;
+    equipment: string;
+    status: string;
 }
 
-export function RegistrationsTable({ registrations }: RegistrationsTableProps) {
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-    const [globalFilter, setGlobalFilter] = useState('');
+interface RegistrationsTableProps {
+    registrations: Registration[];
+    availableTournaments: Tournament[];
+}
 
-    // Extract unique teams for filter
-    const uniqueTeams = useMemo(() => {
-        return Array.from(new Set(registrations.map(r => r.teamName)))
-            .map(name => ({ label: name, value: name }))
-            .sort((a, b) => a.label.localeCompare(b.label));
-    }, [registrations]);
+// Sort order for weight classes
+const weightClassOrder = WEIGHT_CLASSES.map(wc => wc.value);
 
-    const columns: ColumnDef<Registration>[] = [
-        {
-            accessorKey: 'athlete.fullName',
-            id: 'athleteName',
-            header: ({ column }) => (
-                <Button
-                    variant="ghost"
-                    onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-                >
-                    Atleta
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            cell: ({ row }) => (
-                <span className="font-medium">{row.original.athlete.fullName}</span>
-            ),
-        },
-        {
-            accessorKey: 'teamName',
-            id: 'teamName',
-            header: 'Equipo',
-            filterFn: (row, id, value) => value.includes(row.original.teamName),
-        },
-        {
-            accessorKey: 'athlete.gender',
-            id: 'athleteGender',
-            header: 'Género',
-            cell: ({ row }) => {
-                const gender = row.original.athlete.gender;
-                return (
-                    <Badge variant={gender === 'M' ? 'default' : 'secondary'}>
-                        {getLabelFromValue(gender, ATHLETE_GENDER)}
-                    </Badge>
-                );
-            },
-            filterFn: (row, id, value) => value.includes(row.original.athlete.gender),
-        },
-        {
-            accessorKey: 'weightClass',
-            id: 'weightClass',
-            header: 'Categoría',
-            cell: ({ row }) => (
-                <Badge variant="outline">
-                    {getLabelFromValue(row.original.weightClass, WEIGHT_CLASSES)}
-                </Badge>
-            ),
-        },
-        {
-            accessorKey: 'tournament.division',
-            id: 'division',
-            header: 'División',
-            cell: ({ row }) => getLabelFromValue(row.original.tournament.division, TOURNAMENT_DIVISION),
-            filterFn: (row, id, value) => value.includes(row.original.tournament.division),
-        },
-        {
-            accessorKey: 'tournament.modality',
-            id: 'modality',
-            header: 'Modalidad',
-            cell: ({ row }) => getLabelFromValue(row.original.tournament.modality, MODALITIES),
-            filterFn: (row, id, value) => value.includes(row.original.tournament.modality),
-        },
-        {
-            accessorKey: 'tournament.equipment',
-            id: 'equipment',
-            header: 'Equipo',
-            cell: ({ row }) => getLabelFromValue(row.original.tournament.equipment, EQUIPMENT),
-            filterFn: (row, id, value) => value.includes(row.original.tournament.equipment),
-        },
-    ];
+export function RegistrationsTable({ registrations, availableTournaments }: RegistrationsTableProps) {
+    // Nuqs state synced with URL
+    const [division, setDivision] = useQueryState('division', parseAsString.withDefault(''));
+    const [modality, setModality] = useQueryState('modality', parseAsString.withDefault(''));
+    const [equipment, setEquipment] = useQueryState('equipment', parseAsString.withDefault(''));
+    const [gender, setGender] = useQueryState('gender', parseAsString.withDefault(''));
+    const [search, setSearch] = useQueryState('q', parseAsString.withDefault(''));
 
-    const table = useReactTable({
-        data: registrations,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onGlobalFilterChange: setGlobalFilter,
-        state: {
-            sorting,
-            columnFilters,
-            globalFilter,
-        },
-        initialState: {
-            pagination: {
-                pageSize: 20,
-            },
-        },
-    });
+    // Extract available options from tournaments
+    const availableOptions = useMemo(() => {
+        const divisions = [...new Set(availableTournaments.map(t => t.division))];
+        const modalities = [...new Set(availableTournaments.map(t => t.modality))];
+        const equipments = [...new Set(availableTournaments.map(t => t.equipment))];
+        const genders = [...new Set(registrations.map(r => r.athlete.gender))];
+
+        return {
+            divisions: TOURNAMENT_DIVISION.filter(d => divisions.includes(d.value)),
+            modalities: MODALITIES.filter(m => modalities.includes(m.value)),
+            equipments: EQUIPMENT.filter(e => equipments.includes(e.value)),
+            genders: ATHLETE_GENDER.filter(g => genders.includes(g.value)),
+        };
+    }, [availableTournaments, registrations]);
+
+    // Filter registrations
+    const filteredRegistrations = useMemo(() => {
+        return registrations.filter(r => {
+            if (division && r.tournament.division !== division) return false;
+            if (modality && r.tournament.modality !== modality) return false;
+            if (equipment && r.tournament.equipment !== equipment) return false;
+            if (gender && r.athlete.gender !== gender) return false;
+            if (search && !r.athlete.fullName.toLowerCase().includes(search.toLowerCase())) return false;
+            return true;
+        });
+    }, [registrations, division, modality, equipment, gender, search]);
+
+    // Group registrations by division + gender + modality + equipment, then by weight class
+    const groupedData = useMemo(() => {
+        const groups: Record<string, Record<string, Registration[]>> = {};
+
+        filteredRegistrations.forEach(r => {
+            const groupKey = `${r.tournament.division}-${r.athlete.gender}-${r.tournament.modality}-${r.tournament.equipment}`;
+            if (!groups[groupKey]) groups[groupKey] = {};
+            const weightClasses = groups[groupKey]!;
+            if (!weightClasses[r.weightClass]) weightClasses[r.weightClass] = [];
+            weightClasses[r.weightClass]!.push(r);
+        });
+
+        // Sort athletes within each weight class by total (descending)
+        Object.values(groups).forEach(weightClasses => {
+            Object.values(weightClasses).forEach(athletes => {
+                athletes.sort((a, b) => {
+                    const totalA = a.athlete.squatBestKg + a.athlete.benchBestKg + a.athlete.deadliftBestKg;
+                    const totalB = b.athlete.squatBestKg + b.athlete.benchBestKg + b.athlete.deadliftBestKg;
+                    return totalB - totalA;
+                });
+            });
+        });
+
+        return groups;
+    }, [filteredRegistrations]);
+
+    const getGroupLabel = (groupKey: string) => {
+        const [div, gen, mod, equip] = groupKey.split('-');
+        const divLabel = getLabelFromValue(div, TOURNAMENT_DIVISION);
+        const genLabel = getLabelFromValue(gen, ATHLETE_GENDER);
+        const modLabel = getLabelFromValue(mod, MODALITIES);
+        const equipLabel = getLabelFromValue(equip, EQUIPMENT);
+        return `${divLabel} ${genLabel} - ${modLabel} - ${equipLabel}`;
+    };
+
+    const formatWeight = (kg: number) => kg > 0 ? `${kg}` : '-';
+
+    const hasActiveFilters = division || modality || equipment || gender || search;
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                    <Input
-                        placeholder="Buscar atleta..."
-                        value={globalFilter}
-                        onChange={(e) => setGlobalFilter(e.target.value)}
-                        className="max-w-sm"
-                    />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {uniqueTeams.length > 1 && (
-                        <DataTableFacetedFilter
-                            column={table.getColumn('teamName')}
-                            title="Equipo"
-                            options={uniqueTeams}
-                        />
-                    )}
-                    <DataTableFacetedFilter
-                        column={table.getColumn('athleteGender')}
-                        title="Género"
-                        options={ATHLETE_GENDER}
-                    />
-                    <DataTableFacetedFilter
-                        column={table.getColumn('division')}
-                        title="División"
-                        options={TOURNAMENT_DIVISION}
-                    />
-                    <DataTableFacetedFilter
-                        column={table.getColumn('modality')}
-                        title="Modalidad"
-                        options={MODALITIES}
-                    />
-                    <DataTableFacetedFilter
-                        column={table.getColumn('equipment')}
-                        title="Equipamiento"
-                        options={EQUIPMENT}
-                    />
-                </div>
+            {/* Search bar only at top */}
+            <div className="flex items-center">
+                <Input
+                    placeholder="Buscar atleta..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value || null)}
+                    className="max-w-xs"
+                />
+
+                <button
+                    onClick={() => {
+                        setDivision(null);
+                        setModality(null);
+                        setEquipment(null);
+                        setGender(null);
+                        setSearch(null);
+                    }}
+                    className="ml-2 text-xs text-muted-foreground hover:text-foreground transition underline"
+                >
+                    Mostrar todos los atletas en este evento
+                </button>
             </div>
 
-            <div className="rounded-lg border bg-card overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id}>
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id}>
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
-                                    ))}
+            {/* Grouped Tables */}
+            {Object.keys(groupedData).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border rounded-lg bg-card">
+                    <p>No se encontraron atletas con los filtros seleccionados.</p>
+                </div>
+            ) : (
+                Object.entries(groupedData).map(([groupKey, weightClasses]) => (
+                    <div key={groupKey} className="rounded-lg border bg-card overflow-hidden">
+                        {/* Group Header */}
+                        <div className="bg-primary text-primary-foreground px-4 py-3">
+                            <h3 className="font-semibold text-lg">
+                                {getGroupLabel(groupKey)}
+                            </h3>
+                        </div>
+
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[250px]">Nombre</TableHead>
+                                    <TableHead className="text-center">Año</TableHead>
+                                    <TableHead>Equipo</TableHead>
+                                    <TableHead className="text-right">SQ</TableHead>
+                                    <TableHead className="text-right">BP</TableHead>
+                                    <TableHead className="text-right">DL</TableHead>
+                                    <TableHead className="text-right font-bold">Total</TableHead>
                                 </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No se encontraron atletas registrados.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                            </TableHeader>
+                            <TableBody>
+                                {Object.entries(weightClasses)
+                                    .sort(([a], [b]) => weightClassOrder.indexOf(a as typeof weightClassOrder[number]) - weightClassOrder.indexOf(b as typeof weightClassOrder[number]))
+                                    .map(([weightClass, athletes]) => (
+                                        <React.Fragment key={`group-${weightClass}`}>
+                                            {/* Weight Class Separator Row - styled as secondary */}
+                                            <TableRow className="bg-secondary hover:bg-secondary">
+                                                <TableCell colSpan={7} className="py-1.5">
+                                                    <span className="font-bold text-secondary-foreground text-sm">
+                                                        {getLabelFromValue(weightClass, WEIGHT_CLASSES)}
+                                                    </span>
+                                                    <span className="text-secondary-foreground/70 ml-2 text-xs">
+                                                        ({athletes.length})
+                                                    </span>
+                                                </TableCell>
+                                            </TableRow>
 
-            <DataTablePagination table={table} />
+                                            {/* Athletes */}
+                                            {athletes.map((r, idx) => {
+                                                const total = r.athlete.squatBestKg + r.athlete.benchBestKg + r.athlete.deadliftBestKg;
+                                                return (
+                                                    <TableRow key={r.id}>
+                                                        <TableCell>
+                                                            <span className="text-muted-foreground mr-2">{idx + 1}.</span>
+                                                            <span className="font-medium">{r.athlete.fullName}</span>
+                                                        </TableCell>
+                                                        <TableCell className="text-center text-muted-foreground">
+                                                            {r.athlete.birthYear}
+                                                        </TableCell>
+                                                        <TableCell className="text-muted-foreground">
+                                                            {r.teamName}
+                                                        </TableCell>
+                                                        <TableCell className="text-right tabular-nums">
+                                                            {formatWeight(r.athlete.squatBestKg)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right tabular-nums">
+                                                            {formatWeight(r.athlete.benchBestKg)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right tabular-nums">
+                                                            {formatWeight(r.athlete.deadliftBestKg)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right tabular-nums font-bold">
+                                                            {total > 0 ? total : '-'}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                ))
+            )}
+
+            {/* Filters at bottom - smaller and subtle */}
+            <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
+                <span className="text-xs text-muted-foreground">Filtros:</span>
+
+                <Select value={division || 'all'} onValueChange={(v) => setDivision(v === 'all' ? null : v)}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                        <SelectValue placeholder="División" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        {availableOptions.divisions.map(d => (
+                            <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={modality || 'all'} onValueChange={(v) => setModality(v === 'all' ? null : v)}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                        <SelectValue placeholder="Modalidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        {availableOptions.modalities.map(m => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={equipment || 'all'} onValueChange={(v) => setEquipment(v === 'all' ? null : v)}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                        <SelectValue placeholder="Equipamiento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {availableOptions.equipments.map(e => (
+                            <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={gender || 'all'} onValueChange={(v) => setGender(v === 'all' ? null : v)}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                        <SelectValue placeholder="Género" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {availableOptions.genders.map(g => (
+                            <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {hasActiveFilters && (
+                    <button
+                        onClick={() => {
+                            setDivision(null);
+                            setModality(null);
+                            setEquipment(null);
+                            setGender(null);
+                            setSearch(null);
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground transition underline"
+                    >
+                        Limpiar
+                    </button>
+                )}
+            </div>
         </div>
     );
 }

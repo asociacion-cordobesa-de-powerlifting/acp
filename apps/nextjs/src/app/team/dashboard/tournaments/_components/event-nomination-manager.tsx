@@ -83,8 +83,14 @@ export function EventNominationManager({
     // Use standard query options
     const { data: athletes = [], isLoading: isLoadingAthletes } = useQuery(trpc.athletes.list.queryOptions())
     const { data: registrations = [], isLoading: isLoadingRegistrations } = useQuery(trpc.registrations.byTeam.queryOptions())
+    const { data: teamData } = useQuery(trpc.teams.myData.queryOptions())
 
     const isLoading = isLoadingAthletes || isLoadingRegistrations
+
+    // Get the appropriate description based on team affiliation
+    const eventDescription = teamData?.isAffiliated
+        ? event.descriptionAffiliates
+        : event.descriptionNonAffiliates
 
     const [localNominations, setLocalNominations] = useState<Record<string, NominationEntry>>({})
     const [globalFilter, setGlobalFilter] = useState("")
@@ -1074,6 +1080,15 @@ export function EventNominationManager({
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Event Description (based on affiliation) */}
+            {eventDescription && (
+                <div className="mb-4 p-4 bg-muted/30 border rounded-lg">
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {eventDescription}
+                    </p>
+                </div>
+            )}
 
             {/* Search and Filters */}
             <div className="flex flex-wrap items-center gap-4 bg-muted/30 p-4 rounded-lg border border-muted-foreground/10">

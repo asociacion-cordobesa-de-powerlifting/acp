@@ -99,14 +99,14 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
                 return (
                     <div>
                         <Link
-                            href={`/eventos/${t.eventSlug}?tournament=${t.id}`}
+                            href={`/eventos/${t.eventSlug}?division=${t.division}&modality=${t.modality}&equipment=${t.equipment}`}
                             className="font-medium text-primary hover:underline"
                         >
                             {t.eventName}
-                        </Link>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm">
                             {divisionLabel} · {modalityLabel} · {equipmentLabel}
                         </div>
+                        </Link>
                     </div>
                 );
             },
@@ -146,6 +146,12 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
             filterFn: (row, id, value) => value.includes(row.getValue(id)),
         },
         {
+            accessorKey: 'equipment',
+            header: 'Equipamiento',
+            cell: ({ row }) => getLabelFromValue(row.original.equipment, EQUIPMENT),
+            filterFn: (row, id, value) => value.includes(row.getValue(id)),
+        },
+        {
             accessorKey: 'status',
             header: 'Estado',
             cell: ({ row }) => {
@@ -163,7 +169,7 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
             id: 'actions',
             header: '',
             cell: ({ row }) => (
-                <Link href={`/eventos/${row.original.eventSlug}?tournament=${row.original.id}`}>
+                <Link href={`/eventos/${row.original.eventSlug}?division=${row.original.division}&modality=${row.original.modality}&equipment=${row.original.equipment}`}>
                     <Button variant="outline" size="sm">
                         Ver evento
                         <ExternalLink className="ml-2 h-4 w-4" />
@@ -195,6 +201,7 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
             columnVisibility: {
                 division: false,
                 modality: false,
+                equipment: false,
             },
         },
     });
@@ -220,6 +227,13 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
                         column={table.getColumn('modality')}
                         title="Modalidad"
                         options={MODALITIES}
+                    />
+                )}
+                {table.getColumn('equipment') && (
+                    <DataTableFacetedFilter
+                        column={table.getColumn('equipment')}
+                        title="Equipamiento"
+                        options={EQUIPMENT}
                     />
                 )}
                 {table.getColumn('status') && (

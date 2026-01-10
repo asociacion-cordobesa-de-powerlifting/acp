@@ -158,23 +158,64 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                             </a>
                         )}
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                        {event.tournaments.map(t => {
-                            const statusInfo = TOURNAMENT_STATUS.find(s => s.value === t.status);
-                            return (
-                                <div
-                                    key={t.id}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card"
-                                >
-                                    <span className="text-sm font-medium">
-                                        {getLabelFromValue(t.division, TOURNAMENT_DIVISION)} · {getLabelFromValue(t.modality, MODALITIES)} · {getLabelFromValue(t.equipment, EQUIPMENT)}
-                                    </span>
-                                    <Badge className={`${statusColors[t.status] ?? 'bg-muted'} text-white text-xs`}>
-                                        {statusInfo?.label ?? t.status}
-                                    </Badge>
-                                </div>
-                            );
-                        })}
+                    {/* Ticker container with gradient masks */}
+                    <div className="relative overflow-hidden">
+                        {/* Left gradient mask */}
+                        <div className="absolute left-0 top-0 bottom-0 w-12 bg-linear-to-r from-muted/30 to-transparent z-10 pointer-events-none" />
+                        {/* Right gradient mask */}
+                        <div className="absolute right-0 top-0 bottom-0 w-12 bg-linear-to-l from-muted/30 to-transparent z-10 pointer-events-none" />
+
+                        {/* Ticker animation */}
+                        <div className="flex animate-ticker hover:paused">
+                            {/* First set */}
+                            {event.tournaments.map(t => {
+                                const statusInfo = TOURNAMENT_STATUS.find(s => s.value === t.status);
+                                const filterParams = new URLSearchParams({
+                                    division: t.division,
+                                    modality: t.modality,
+                                    equipment: t.equipment,
+                                });
+                                return (
+                                    <Link
+                                        key={`first-${t.id}`}
+                                        href={`?${filterParams.toString()}`}
+                                        scroll={false}
+                                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 mx-2 rounded-full border border-border bg-card hover:bg-muted transition cursor-pointer"
+                                    >
+                                        <span className="text-sm font-medium whitespace-nowrap">
+                                            {getLabelFromValue(t.division, TOURNAMENT_DIVISION)} · {getLabelFromValue(t.modality, MODALITIES)} · {getLabelFromValue(t.equipment, EQUIPMENT)}
+                                        </span>
+                                        <Badge className={`${statusColors[t.status] ?? 'bg-muted'} text-white text-xs`}>
+                                            {statusInfo?.label ?? t.status}
+                                        </Badge>
+                                    </Link>
+                                );
+                            })}
+                            {/* Duplicate set for seamless loop */}
+                            {event.tournaments.map(t => {
+                                const statusInfo = TOURNAMENT_STATUS.find(s => s.value === t.status);
+                                const filterParams = new URLSearchParams({
+                                    division: t.division,
+                                    modality: t.modality,
+                                    equipment: t.equipment,
+                                });
+                                return (
+                                    <Link
+                                        key={`second-${t.id}`}
+                                        href={`?${filterParams.toString()}`}
+                                        scroll={false}
+                                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 mx-2 rounded-full border border-border bg-card hover:bg-muted transition cursor-pointer"
+                                    >
+                                        <span className="text-sm font-medium whitespace-nowrap">
+                                            {getLabelFromValue(t.division, TOURNAMENT_DIVISION)} · {getLabelFromValue(t.modality, MODALITIES)} · {getLabelFromValue(t.equipment, EQUIPMENT)}
+                                        </span>
+                                        <Badge className={`${statusColors[t.status] ?? 'bg-muted'} text-white text-xs`}>
+                                            {statusInfo?.label ?? t.status}
+                                        </Badge>
+                                    </Link>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -192,7 +233,10 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                     </div>
 
                     {registrations.length > 0 ? (
-                        <RegistrationsTable registrations={registrations} />
+                        <RegistrationsTable
+                            registrations={registrations}
+                            availableTournaments={event.tournaments}
+                        />
                     ) : (
                         <div className="text-center py-12 text-muted-foreground border rounded-lg bg-card">
                             <UsersIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />

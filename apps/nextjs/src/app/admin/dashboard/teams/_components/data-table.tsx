@@ -49,20 +49,29 @@ import { EditTeamDialog } from "./edit-team-dialog"
 import { DataTablePagination } from "~/app/_components/table/pagination"
 import { DataTableFacetedFilter } from "~/app/_components/table/faceted-filter"
 
-// Define Team type (based on user schema)
-type Team = {
+// Define Team type (based on teamData with user)
+type TeamWithUser = {
     id: string;
-    email: string;
-    emailVerified: boolean;
-    name: string;
+    slug: string;
+    userId: string;
+    isAffiliated: boolean;
     createdAt: Date;
     updatedAt: Date;
-    image?: string | null;
-    role?: string | null;
-    banned?: boolean | null;
+    deletedAt: Date | null;
+    user: {
+        id: string;
+        email: string;
+        emailVerified: boolean;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        image?: string | null;
+        role?: string | null;
+        banned?: boolean | null;
+    };
 }
 
-function TeamActions({ team }: { team: Team }) {
+function TeamActions({ team }: { team: TeamWithUser }) {
     const [isBanDialogOpen, setIsBanDialogOpen] = useState(false)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -70,22 +79,22 @@ function TeamActions({ team }: { team: Team }) {
     const queryClient = useQueryClient();
 
     const handleBanUser = async () => {
-        const { error } = await authClient.admin.banUser({ userId: team.id });
+        const { error } = await authClient.admin.banUser({ userId: team.user.id });
         if (error) {
             toast.error(error.message);
         } else {
-            toast.success(team.banned ? "Equipo desbaneado correctamente" : "Equipo baneado correctamente");
-            void queryClient.invalidateQueries(trpc.teams.list.pathFilter());
+            toast.success(team.user.banned ? "Equipo desbaneado correctamente" : "Equipo baneado correctamente");
+            void queryClient.invalidateQueries(trpc.teams.listWithTeamData.pathFilter());
         }
     };
 
     const handleDeleteUser = async () => {
-        const { error } = await authClient.admin.removeUser({ userId: team.id });
+        const { error } = await authClient.admin.removeUser({ userId: team.user.id });
         if (error) {
             toast.error(error.message);
         } else {
             toast.success("Equipo eliminado correctamente");
-            void queryClient.invalidateQueries(trpc.teams.list.pathFilter());
+            void queryClient.invalidateQueries(trpc.teams.listWithTeamData.pathFilter());
         }
     };
 
@@ -110,7 +119,7 @@ function TeamActions({ team }: { team: Team }) {
                         className="text-amber-600 focus:text-amber-600"
                     >
                         <Ban className="mr-2 h-4 w-4" />
-                        {team.banned ? 'Desbanear' : 'Banear (Bloquear acceso)'}
+                        {team.user.banned ? 'Desbanear' : 'Banear (Bloquear acceso)'}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setIsDeleteDialogOpen(true)}
@@ -124,7 +133,13 @@ function TeamActions({ team }: { team: Team }) {
 
             {/* Edit Dialog */}
             <EditTeamDialog
-                team={team}
+                team={{
+                    id: team.user.id,
+                    name: team.user.name,
+                    email: team.user.email,
+                    teamDataId: team.id,
+                    isAffiliated: team.isAffiliated,
+                }}
                 open={isEditDialogOpen}
                 onOpenChange={setIsEditDialogOpen}
             />
@@ -133,9 +148,9 @@ function TeamActions({ team }: { team: Team }) {
             <AlertDialog open={isBanDialogOpen} onOpenChange={setIsBanDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿{team.banned ? 'Desbanear' : 'Banear'} a este equipo?</AlertDialogTitle>
+                        <AlertDialogTitle>¿{team.user.banned ? 'Desbanear' : 'Banear'} a este equipo?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            {team.banned
+                            {team.user.banned
                                 ? "El equipo recuperará el acceso a la plataforma."
                                 : "El equipo perderá el acceso a la plataforma hasta que sea desbaneado."}
                         </AlertDialogDescription>
@@ -158,7 +173,7 @@ function TeamActions({ team }: { team: Team }) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Estás seguro de eliminar este equipo?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta del equipo "{team.name}" y todos sus datos asociados.
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta del equipo "{team.user.name}" y todos sus datos asociados.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -185,10 +200,10 @@ export function TeamsDataTable() {
     const [globalFilter, setGlobalFilter] = useState("")
     const trpc = useTRPC();
 
-    const { data: teams = [], isLoading } = useSuspenseQuery(trpc.teams.list.queryOptions());
+    const { data: teams = [], isLoading } = useSuspenseQuery(trpc.teams.listWithTeamData.queryOptions());
 
     // Define columns
-    const columns: ColumnDef<Team>[] = [
+    const columns: ColumnDef<TeamWithUser>[] = [
         // {
         //     id: "avatar",
         //     header: "",
@@ -208,7 +223,8 @@ export function TeamsDataTable() {
         //     },
         // },
         {
-            accessorKey: 'name',
+            accessorKey: 'user.name',
+            id: 'name',
             header: ({ column }) => {
                 return (
                     <Button
@@ -220,9 +236,11 @@ export function TeamsDataTable() {
                     </Button>
                 )
             },
+            cell: ({ row }) => row.original.user.name,
         },
         {
-            accessorKey: 'email',
+            accessorKey: 'user.email',
+            id: 'email',
             header: ({ column }) => {
                 return (
                     <Button
@@ -234,15 +252,31 @@ export function TeamsDataTable() {
                     </Button>
                 )
             },
+            cell: ({ row }) => row.original.user.email,
         },
         {
-            accessorKey: 'banned',
-            header: 'Estado',
+            accessorKey: 'isAffiliated',
+            header: 'Afiliado',
             cell: ({ row }) => {
-                return row.original.banned ? <Badge variant="destructive">Baneado</Badge> : <Badge variant="outline">Activo</Badge>
+                return row.original.isAffiliated
+                    ? <Badge className="bg-green-600">Sí</Badge>
+                    : <Badge variant="outline">No</Badge>
             },
             filterFn: (row, id, value) => {
-                const rowValue = row.getValue(id)
+                const isAffiliated = row.original.isAffiliated
+                const status = isAffiliated ? "true" : "false"
+                return value.includes(status)
+            }
+        },
+        {
+            accessorKey: 'user.banned',
+            id: 'banned',
+            header: 'Estado',
+            cell: ({ row }) => {
+                return row.original.user.banned ? <Badge variant="destructive">Baneado</Badge> : <Badge variant="outline">Activo</Badge>
+            },
+            filterFn: (row, id, value) => {
+                const rowValue = row.original.user.banned
                 const status = rowValue ? "true" : "false"
                 return value.includes(status)
             }
@@ -288,6 +322,14 @@ export function TeamsDataTable() {
                     className="max-w-sm"
                 />
 
+                <DataTableFacetedFilter
+                    column={table.getColumn("isAffiliated")}
+                    title="Afiliación"
+                    options={[
+                        { label: "Afiliado", value: "true" },
+                        { label: "No afiliado", value: "false" },
+                    ]}
+                />
                 <DataTableFacetedFilter
                     column={table.getColumn("banned")}
                     title="Estado"

@@ -24,6 +24,7 @@ import {
     FieldLabel,
 } from "@acme/ui/field"
 import { Input } from "@acme/ui/input"
+import { Textarea } from "@acme/ui/textarea"
 import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
 import { eventValidator } from "@acme/shared/validators"
@@ -76,6 +77,8 @@ export function CreateTournamentDialog() {
         location: "",
         startDate: dayjs().toDate(),
         endDate: dayjs().toDate(),
+        descriptionAffiliates: "",
+        descriptionNonAffiliates: "",
     }
 
     const form = useForm({
@@ -252,6 +255,56 @@ export function CreateTournamentDialog() {
                                                 </Field>
                                             )
                                         }}
+                                    />
+                                </div>
+
+                                {/* Descripciones opcionales */}
+                                <div className="pt-4 border-t space-y-4">
+                                    <div>
+                                        <Label className="text-sm font-medium">Descripciones para Equipos (opcional)</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Texto que verán los equipos en la tarjeta de la nómina.
+                                        </p>
+                                    </div>
+
+                                    <form.Field
+                                        name="descriptionAffiliates"
+                                        children={(field) => (
+                                            <Field>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Para Afiliados</FieldLabel>
+                                                </FieldContent>
+                                                <Textarea
+                                                    id={field.name}
+                                                    value={field.state.value ?? ''}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.value)}
+                                                    placeholder="Texto para equipos afiliados..."
+                                                    className="max-h-[80px] resize-none"
+                                                    rows={2}
+                                                />
+                                            </Field>
+                                        )}
+                                    />
+
+                                    <form.Field
+                                        name="descriptionNonAffiliates"
+                                        children={(field) => (
+                                            <Field>
+                                                <FieldContent>
+                                                    <FieldLabel htmlFor={field.name}>Para No Afiliados</FieldLabel>
+                                                </FieldContent>
+                                                <Textarea
+                                                    id={field.name}
+                                                    value={field.state.value ?? ''}
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(e) => field.handleChange(e.target.value)}
+                                                    placeholder="Texto para equipos no afiliados..."
+                                                    className="max-h-[80px] resize-none"
+                                                    rows={2}
+                                                />
+                                            </Field>
+                                        )}
                                     />
                                 </div>
                             </FieldGroup>

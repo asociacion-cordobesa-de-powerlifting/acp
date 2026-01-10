@@ -3,7 +3,7 @@ import HeroVideo from './_components/landing/hero-video';
 import SegmentsSection from './_components/landing/segments-section';
 import StepsSection from './_components/landing/steps-section';
 import UpcomingTournamentsSection from './_components/landing/upcoming-tournaments-section';
-import TeamsSection from './_components/landing/teams-section';
+// import TeamsSection from './_components/landing/teams-section';
 // import AthletesSection from './_components/landing/athletes-section';
 import { Footer } from './_components/landing/footer';
 import { getSession } from '~/auth/server';
@@ -25,7 +25,7 @@ export default async function LandingPage() {
       <UpcomingTournamentsSection />
 
       {/* Teams Section */}
-      <TeamsSection />
+      {/* <TeamsSection /> */}
 
       {/* How It Works Section */}
       <StepsSection />

@@ -17,12 +17,11 @@ export default async function UpcomingTournamentsSection() {
         }))
     );
 
-    // Filter only preliminary_open or future events, sort by date
-    const upcomingTournaments = allTournaments
-        .filter(t => t.status === 'preliminary_open' || new Date(t.startDate) >= new Date())
+    // Sort by date (most recent first for finished, upcoming first for open)
+    const sortedTournaments = allTournaments
         .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-    if (upcomingTournaments.length === 0) {
+    if (sortedTournaments.length === 0) {
         return (
             <section
                 id="torneos"
@@ -57,7 +56,7 @@ export default async function UpcomingTournamentsSection() {
                     </p>
                 </div>
 
-                <TournamentsTable tournaments={upcomingTournaments} />
+                <TournamentsTable tournaments={sortedTournaments} />
             </div>
         </section>
     );

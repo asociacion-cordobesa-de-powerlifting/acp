@@ -23,6 +23,7 @@ import {
     FieldLabel,
 } from "@acme/ui/field"
 import { Input } from "@acme/ui/input"
+import { Textarea } from "@acme/ui/textarea"
 import {
     Select,
     SelectContent,
@@ -81,6 +82,8 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
         location: event.location,
         startDate: dayjs(event.startDate).toDate(),
         endDate: dayjs(event.endDate).toDate(),
+        descriptionAffiliates: event.descriptionAffiliates ?? '',
+        descriptionNonAffiliates: event.descriptionNonAffiliates ?? '',
         propagateStatus: undefined,
     }
 
@@ -107,7 +110,7 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Editar Evento</DialogTitle>
                     <DialogDescription>
@@ -121,8 +124,7 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
                         e.stopPropagation()
                         void form.handleSubmit()
                     }}
-                    className="space-y-6"
-                >
+                    className="flex-1 overflow-y-auto space-y-6 pr-2">
                     <FieldGroup>
                         <form.Field
                             name="name"
@@ -208,6 +210,58 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
                                             date={field.state.value as Date}
                                             setDate={(date) => field.handleChange(date as Date)}
                                             label="Seleccionar fecha"
+                                        />
+                                        <FieldError errors={field.state.meta.errors} />
+                                    </Field>
+                                )}
+                            />
+                        </div>
+
+                        {/* Descripciones diferenciadas */}
+                        <div className="pt-4 border-t space-y-4">
+                            <div>
+                                <Label className="text-base">Descripciones por Tipo de Equipo</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Texto que verán los equipos en la tarjeta de la nómina.
+                                </p>
+                            </div>
+
+                            <form.Field
+                                name="descriptionAffiliates"
+                                children={(field) => (
+                                    <Field>
+                                        <FieldContent>
+                                            <FieldLabel htmlFor={field.name}>Descripción para Afiliados</FieldLabel>
+                                        </FieldContent>
+                                        <Textarea
+                                            id={field.name}
+                                            value={field.state.value ?? ''}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) => field.handleChange(e.target.value)}
+                                            placeholder="Texto para equipos afiliados..."
+                                            className="max-h-[120px] resize-none"
+                                            rows={3}
+                                        />
+                                        <FieldError errors={field.state.meta.errors} />
+                                    </Field>
+                                )}
+                            />
+
+                            <form.Field
+                                name="descriptionNonAffiliates"
+                                children={(field) => (
+                                    <Field>
+                                        <FieldContent>
+                                            <FieldLabel htmlFor={field.name}>Descripción para No Afiliados</FieldLabel>
+                                        </FieldContent>
+                                        <Textarea
+                                            id={field.name}
+                                            value={field.state.value ?? ''}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) => field.handleChange(e.target.value)}
+                                            placeholder="Texto para equipos no afiliados..."
+                                            className="max-h-[120px] resize-none"
+                                            rows={3}
                                         />
                                         <FieldError errors={field.state.meta.errors} />
                                     </Field>

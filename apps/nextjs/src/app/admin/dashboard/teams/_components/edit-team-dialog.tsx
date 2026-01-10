@@ -47,6 +47,8 @@ interface EditTeamDialogProps {
         id: string
         name: string
         email: string
+        teamDataId?: string
+        isAffiliated?: boolean
     }
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -54,6 +56,7 @@ interface EditTeamDialogProps {
 
 export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps) {
     const [changePassword, setChangePassword] = useState(false)
+    const [isAffiliated, setIsAffiliated] = useState(team.isAffiliated ?? false)
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -96,11 +99,24 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
             setChangePassword(false) // Reset state
             form.reset() // Reset form to clear password
             await queryClient.invalidateQueries(trpc.teams.list.pathFilter())
+            await queryClient.invalidateQueries(trpc.teams.listWithTeamData.pathFilter())
         },
         onError: (err) => {
             toast.error(err.message)
         },
     })
+
+    const updateAffiliation = useMutation(
+        trpc.teams.update.mutationOptions({
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(trpc.teams.listWithTeamData.pathFilter())
+            },
+            onError: (err) => {
+                toast.error(err.message)
+                setIsAffiliated(!isAffiliated) // Revert on error
+            },
+        })
+    )
 
     const defaultValues: z.input<typeof formSchema> = {
         name: team.name,
@@ -229,6 +245,27 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
                         )}
 
                     </FieldGroup>
+
+                    {team.teamDataId && (
+                        <div className="flex items-center space-x-2 py-2 border-t pt-4">
+                            <Switch
+                                id="is-affiliated"
+                                checked={isAffiliated}
+                                onCheckedChange={(checked) => {
+                                    setIsAffiliated(checked)
+                                    updateAffiliation.mutate({
+                                        teamId: team.teamDataId!,
+                                        isAffiliated: checked,
+                                    })
+                                }}
+                                disabled={updateAffiliation.isPending}
+                            />
+                            <Label htmlFor="is-affiliated">Equipo afiliado</Label>
+                            {updateAffiliation.isPending && (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            )}
+                        </div>
+                    )}
                     <DialogFooter>
                         <Button type="submit" disabled={updateTeam.isPending}>
                             {updateTeam.isPending && (

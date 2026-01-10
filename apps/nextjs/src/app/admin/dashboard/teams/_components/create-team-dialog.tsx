@@ -25,6 +25,8 @@ import {
     FieldLabel,
 } from "@acme/ui/field"
 import { Input } from "@acme/ui/input"
+import { Switch } from "@acme/ui/switch"
+import { Label } from "@acme/ui/label"
 import { toast } from "@acme/ui/toast"
 
 import { useTRPC } from "~/trpc/react"
@@ -39,6 +41,7 @@ const formSchema = z.object({
     password: z.string().min(6, {
         message: "La contraseña debe tener al menos 6 caracteres.",
     }),
+    isAffiliated: z.boolean(),
 })
 
 export function CreateTeamDialog() {
@@ -68,6 +71,7 @@ export function CreateTeamDialog() {
             name: "",
             email: "",
             password: "",
+            isAffiliated: false,
         },
         validators: {
             onChange: formSchema,
@@ -171,6 +175,20 @@ export function CreateTeamDialog() {
                             }}
                         />
                     </FieldGroup>
+
+                    <form.Field
+                        name="isAffiliated"
+                        children={(field) => (
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id={field.name}
+                                    checked={field.state.value}
+                                    onCheckedChange={(checked: boolean) => field.handleChange(checked)}
+                                />
+                                <Label htmlFor={field.name}>Equipo afiliado</Label>
+                            </div>
+                        )}
+                    />
                     <DialogFooter>
                         <Button type="submit" disabled={createTeam.isPending}>
                             {createTeam.isPending && (

@@ -77,6 +77,7 @@ export const teamData = pgTable("team_data", (t) => ({
     .text()
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  isAffiliated: t.boolean('is_affiliated').default(false).notNull(),
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(), // borrado lógico
@@ -102,6 +103,8 @@ export const event = pgTable("event", (t) => ({
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }).notNull(),
   resultsUrl: t.text('results_url'), // URL to results PDF in public bucket
+  descriptionAffiliates: t.text('description_affiliates'), // Descripción para equipos afiliados
+  descriptionNonAffiliates: t.text('description_non_affiliates'), // Descripción para equipos no afiliados
 
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => new Date()),

@@ -49,6 +49,7 @@ export const teamsRouter = {
             name: z.string().min(2),
             email: z.string().email(),
             password: z.string().min(6),
+            isAffiliated: z.boolean().optional().default(false),
         }))
         .mutation(async ({ ctx, input }) => {
 
@@ -77,7 +78,32 @@ export const teamsRouter = {
             return await ctx.db.insert(teamData).values({
                 userId,
                 slug: input.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+                isAffiliated: input.isAffiliated,
             });
+        }),
+
+    update: adminProcedure
+        .input(z.object({
+            teamId: z.string().uuid(),
+            isAffiliated: z.boolean(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const team = await ctx.db.query.teamData.findFirst({
+                where: eq(teamData.id, input.teamId),
+            });
+
+            if (!team) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Equipo no encontrado',
+                });
+            }
+
+            await ctx.db.update(teamData)
+                .set({ isAffiliated: input.isAffiliated })
+                .where(eq(teamData.id, input.teamId));
+
+            return { success: true };
         }),
 
     listWithTeamData: adminProcedure
@@ -87,5 +113,22 @@ export const teamsRouter = {
                 with: { user: true },
                 orderBy: [desc(teamData.createdAt)],
             });
+        }),
+
+    // Get current team's own data (for team dashboard)
+    myData: protectedProcedure
+        .query(async ({ ctx }) => {
+            const team = await ctx.db.query.teamData.findFirst({
+                where: eq(teamData.userId, ctx.session.user.id),
+            });
+
+            if (!team) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Equipo no encontrado',
+                });
+            }
+
+            return team;
         }),
 } satisfies TRPCRouterRecord;

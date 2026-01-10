@@ -35,3 +35,18 @@
 ::selection {
   @apply bg-accent text-primary-foreground;
 }
+
+/* Ticker animation for modalities */
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@utility animate-ticker {
+  animation: ticker 20s linear infinite;
+}
