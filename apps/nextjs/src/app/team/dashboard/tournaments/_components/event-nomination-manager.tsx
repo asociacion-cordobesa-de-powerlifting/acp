@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
-import { Loader2, Users, Save, Search, Filter, ArrowUpDown, Info } from "lucide-react"
+import { Loader2, Users, Save, Search, Filter, ArrowUpDown, Info, Upload, FileText, X } from "lucide-react"
 import { Button } from "@acme/ui/button"
 import {
     Select,
@@ -19,6 +19,17 @@ import { Badge } from "@acme/ui/badge"
 import { ScrollArea } from "@acme/ui/scroll-area"
 import { Switch } from "@acme/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@acme/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@acme/ui/alert-dialog"
 import { RouterOutputs } from "@acme/api"
 import { cn } from "@acme/ui"
 import { dayjs } from "@acme/shared/libs"
@@ -56,6 +67,8 @@ type NominationEntry = {
     // Status for each division when in "both" mode
     divisionStatus?: "pending" | "approved" | "rejected"
     openStatus?: "pending" | "approved" | "rejected"
+    // Payment receipt
+    paymentReceiptUrl?: string | null
 }
 
 export function EventNominationManager({
@@ -78,6 +91,159 @@ export function EventNominationManager({
     const [sorting, setSorting] = useState<SortingState>([{ id: "fullName", desc: false }])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [hideRegistered, setHideRegistered] = useState(false)
+    const [uploadingAthleteId, setUploadingAthleteId] = useState<string | null>(null)
+    const [uploadDialogAthleteId, setUploadDialogAthleteId] = useState<string | null>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [viewingReceiptAthleteId, setViewingReceiptAthleteId] = useState<string | null>(null)
+    const [deleteConfirmAthleteId, setDeleteConfirmAthleteId] = useState<string | null>(null)
+
+    // Payment receipt mutation
+    const updateReceipt = useMutation(
+        trpc.registrations.updatePaymentReceipt.mutationOptions({
+            onSuccess: async () => {
+                toast.success("Comprobante actualizado")
+                await queryClient.invalidateQueries(trpc.registrations.byTeam.pathFilter())
+            },
+            onError: (err) => {
+                toast.error(err.message)
+            },
+            onSettled: () => {
+                setUploadingAthleteId(null)
+            }
+        })
+    )
+
+    // File upload handler (uses secure API route)
+    const handleFileUpload = async (athleteId: string, file?: File) => {
+        if (!file) return
+
+        setUploadingAthleteId(athleteId)
+
+        try {
+            let fileToUpload: Blob = file
+            let fileName = file.name
+            const isImage = file.type.startsWith('image/')
+
+            // Optimize images to webp using API
+            if (isImage) {
+                const optimizeFormData = new FormData()
+                optimizeFormData.append('file', file)
+
+                const optimizeResponse = await fetch('/api/optimize-image', {
+                    method: 'POST',
+                    body: optimizeFormData
+                })
+
+                if (optimizeResponse.ok) {
+                    fileToUpload = await optimizeResponse.blob()
+                    fileName = file.name.replace(/\.[^/.]+$/, '.webp')
+                } else {
+                    console.warn('Image optimization failed, uploading original')
+                }
+            }
+
+            // Upload via secure API route
+            const uploadFormData = new FormData()
+            uploadFormData.append('file', fileToUpload, fileName)
+            uploadFormData.append('eventId', event.id)
+            uploadFormData.append('athleteId', athleteId)
+
+            const response = await fetch('/api/storage/receipt', {
+                method: 'POST',
+                body: uploadFormData
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                toast.error("Error subiendo archivo: " + (error.error || 'Unknown error'))
+                setUploadingAthleteId(null)
+                return
+            }
+
+            const { path } = await response.json()
+
+            // Update in database (store path, not URL)
+            updateReceipt.mutate({
+                eventId: event.id,
+                athleteId,
+                receiptUrl: path // Actually storing the path
+            })
+
+            // Update local state
+            setLocalNominations(prev => {
+                const current = prev[athleteId]
+                if (!current) return prev
+                return {
+                    ...prev,
+                    [athleteId]: { ...current, paymentReceiptUrl: path }
+                }
+            })
+        } catch (err) {
+            toast.error("Error subiendo archivo")
+            setUploadingAthleteId(null)
+        }
+    }
+
+    // Remove receipt handler (uses secure API route)
+    const handleRemoveReceipt = async (athleteId: string) => {
+        setUploadingAthleteId(athleteId)
+
+        try {
+            // Delete from storage via secure API route
+            const response = await fetch('/api/storage/receipt', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: event.id, athleteId })
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                toast.error("Error eliminando archivo: " + (error.error || 'Unknown error'))
+                setUploadingAthleteId(null)
+                return
+            }
+
+            // Remove from database (set to null)
+            updateReceipt.mutate({
+                eventId: event.id,
+                athleteId,
+                receiptUrl: null
+            })
+
+            // Update local state
+            setLocalNominations(prev => {
+                const current = prev[athleteId]
+                if (!current) return prev
+                return {
+                    ...prev,
+                    [athleteId]: { ...current, paymentReceiptUrl: null }
+                }
+            })
+        } catch (err) {
+            toast.error("Error eliminando archivo")
+            setUploadingAthleteId(null)
+        }
+    }
+
+    // View receipt handler (fetches fresh signed URL and opens in new tab)
+    const handleViewReceipt = async (athleteId: string, path: string) => {
+        setViewingReceiptAthleteId(athleteId)
+        try {
+            const response = await fetch(`/api/storage/receipt?path=${encodeURIComponent(path)}`)
+
+            if (!response.ok) {
+                toast.error("Error obteniendo comprobante")
+                return
+            }
+
+            const { url } = await response.json()
+            window.open(url, '_blank')
+        } catch (err) {
+            toast.error("Error obteniendo comprobante")
+        } finally {
+            setViewingReceiptAthleteId(null)
+        }
+    }
 
     // Track last event ID to reset state when event changes
     const lastEventIdRef = useRef<string>(event.id)
@@ -167,7 +333,8 @@ export function EventNominationManager({
                     isRejected: allRejected,
                     isExisting: true,
                     divisionStatus,
-                    openStatus
+                    openStatus,
+                    paymentReceiptUrl: mainReg.paymentReceiptUrl
                 }
             }
         }
@@ -721,10 +888,86 @@ export function EventNominationManager({
                 )
             }
         }),
+        columnHelper.display({
+            id: "receipt",
+            header: "Comprobante",
+            cell: ({ row }) => {
+                const a = row.original
+                if (!a.entry) return null
+
+                const receiptPath = a.entry.paymentReceiptUrl
+                const isViewing = viewingReceiptAthleteId === a.id
+                const isUploading = uploadingAthleteId === a.id
+
+                // Has receipt - show view button
+                if (receiptPath) {
+                    return (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleViewReceipt(a.id, receiptPath)}
+                                disabled={isViewing || isUploading}
+                                className={cn(
+                                    "text-primary hover:underline flex items-center gap-1 text-xs",
+                                    (isViewing || isUploading) && "opacity-50 cursor-wait"
+                                )}
+                            >
+                                {isViewing ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    <FileText className="h-3 w-3" />
+                                )}
+                                Ver
+                            </button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => setDeleteConfirmAthleteId(a.id)}
+                                disabled={isUploading}
+                            >
+                                {isUploading ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    <X className="h-3 w-3 text-destructive" />
+                                )}
+                            </Button>
+                        </div>
+                    )
+                }
+
+                // Event ended without receipt
+                // if (isEventEnded) {
+                //     return (
+                //         <span className="text-muted-foreground text-xs italic">
+                //             No disponible
+                //         </span>
+                //     )
+                // }
+
+                // No receipt yet - show upload button
+                return (
+                    <button
+                        onClick={() => setUploadDialogAthleteId(a.id)}
+                        disabled={isUploading}
+                        className={cn(
+                            "flex items-center gap-1 text-xs cursor-pointer hover:text-primary transition-colors",
+                            isUploading && "opacity-50 cursor-not-allowed"
+                        )}
+                    >
+                        {isUploading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <Upload className="h-3 w-3" />
+                        )}
+                        <span>Subir</span>
+                    </button>
+                )
+            }
+        }),
         columnHelper.accessor("gender", { id: "gender", header: () => null, cell: () => null }),
         columnHelper.accessor(row => row.matched?.division, { id: "matchedDivision", header: () => null, cell: () => null }),
         columnHelper.accessor("athleteDivision", { id: "athleteDivision", header: () => null, cell: () => null }),
-    ], [localNominations, event.tournaments, athletes])
+    ], [localNominations, event.tournaments, event.endDate, athletes, uploadingAthleteId, viewingReceiptAthleteId])
 
     const table = useReactTable({
         data: filteredTableData,
@@ -993,6 +1236,98 @@ export function EventNominationManager({
                     </Button>
                 </div>
             </div>
+
+
+            {/* Upload Dialog with Drag & Drop */}
+            <Dialog open={!!uploadDialogAthleteId} onOpenChange={(open) => !open && setUploadDialogAthleteId(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Subir Comprobante de Pago</DialogTitle>
+                    </DialogHeader>
+                    <div
+                        className={cn(
+                            "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
+                            isDragging ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
+                        )}
+                        onDragOver={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsDragging(true)
+                        }}
+                        onDragLeave={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsDragging(false)
+                        }}
+                        onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsDragging(false)
+                            const file = e.dataTransfer.files[0]
+                            if (file && uploadDialogAthleteId) {
+                                handleFileUpload(uploadDialogAthleteId, file)
+                                setUploadDialogAthleteId(null)
+                            }
+                        }}
+                        onClick={() => {
+                            const input = document.getElementById('upload-dialog-file-input') as HTMLInputElement
+                            input?.click()
+                        }}
+                    >
+                        <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            id="upload-dialog-file-input"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file && uploadDialogAthleteId) {
+                                    handleFileUpload(uploadDialogAthleteId, file)
+                                    setUploadDialogAthleteId(null)
+                                }
+                                e.target.value = '' // Reset input
+                            }}
+                        />
+                        <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                        <p className="text-sm text-muted-foreground mb-1">
+                            {isDragging ? (
+                                <span className="text-primary font-medium">Suelta el archivo aquí</span>
+                            ) : (
+                                <>Arrastra un archivo o <span className="text-primary underline">haz clic para seleccionar</span></>
+                            )}
+                        </p>
+                        <p className="text-xs text-muted-foreground/70">
+                            Imágenes (JPG, PNG, WEBP) o PDF
+                        </p>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation AlertDialog */}
+            <AlertDialog open={!!deleteConfirmAthleteId} onOpenChange={(open) => !open && setDeleteConfirmAthleteId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar comprobante?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. El comprobante será eliminado permanentemente.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (deleteConfirmAthleteId) {
+                                    handleRemoveReceipt(deleteConfirmAthleteId)
+                                    setDeleteConfirmAthleteId(null)
+                                }
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

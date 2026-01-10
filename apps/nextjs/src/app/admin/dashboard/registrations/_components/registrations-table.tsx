@@ -48,6 +48,9 @@ import {
 import { useSearchParams, useRouter } from "next/navigation"
 import { UpdateRegistrationStatusDialog } from "./update-registration-status-dialog"
 import { BulkUpdateStatusDialog } from "./bulk-update-status-dialog"
+import { toast } from "@acme/ui/toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@acme/ui/dialog"
+import { Loader2, FileText } from "lucide-react"
 
 // Helper type for Registration with relations
 type Registration = RouterOutputs["registrations"]["all"][number]
@@ -280,6 +283,46 @@ export function RegistrationsDataTable() {
             },
             filterFn: (row, id, value) => {
                 return value.includes(row.original.status)
+            },
+        },
+        {
+            accessorKey: 'paymentReceiptUrl',
+            header: 'Comprobante',
+            cell: function ReceiptCell({ row }) {
+                const path = row.original.paymentReceiptUrl
+                const [isLoading, setIsLoading] = useState(false)
+
+                if (!path) return <span className="text-muted-foreground text-xs">-</span>
+
+                return (
+                    <button
+                        disabled={isLoading}
+                        onClick={async () => {
+                            setIsLoading(true)
+                            try {
+                                const response = await fetch(`/api/storage/receipt?path=${encodeURIComponent(path)}`)
+                                if (response.ok) {
+                                    const { url } = await response.json()
+                                    window.open(url, '_blank')
+                                } else {
+                                    toast.error("Error obteniendo comprobante")
+                                }
+                            } catch {
+                                toast.error("Error obteniendo comprobante")
+                            } finally {
+                                setIsLoading(false)
+                            }
+                        }}
+                        className="text-primary hover:underline text-xs flex items-center gap-1"
+                    >
+                        {isLoading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <FileText className="h-3 w-3" />
+                        )}
+                        Ver
+                    </button>
+                )
             },
         },
         {

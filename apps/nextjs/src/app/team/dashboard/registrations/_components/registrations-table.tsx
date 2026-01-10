@@ -23,7 +23,7 @@ import {
 } from "@acme/ui/table"
 import { Button } from "@acme/ui/button"
 import { Input } from "@acme/ui/input"
-import { ChevronDown, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Pencil, Trash2, Upload } from "lucide-react"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
@@ -38,12 +38,14 @@ import {
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
 import { toast } from "@acme/ui/toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@acme/ui/dialog"
+import { Loader2, FileText } from "lucide-react"
 import { getLabelFromValue, getAthleteDivision, mapTournamentDivisionToAthleteDivision } from "@acme/shared"
 
 // Helper type for Registration with relations
 type Registration = RouterOutputs["registrations"]["byTeam"][number]
 
-function RegistrationActions({ registration }: { registration: Registration }) {
+function RegistrationActions({ registration, onUploadClick }: { registration: Registration; onUploadClick: (registration: Registration) => void }) {
     const [showEditDialog, setShowEditDialog] = useState(false)
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -61,6 +63,9 @@ function RegistrationActions({ registration }: { registration: Registration }) {
         })
     )
 
+    const isTournamentCompleted = registration.tournament.status === "finished"
+    const hasReceipt = !!registration.paymentReceiptUrl
+
     return (
         <>
             <DropdownMenu>
@@ -71,6 +76,12 @@ function RegistrationActions({ registration }: { registration: Registration }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    {!isTournamentCompleted && !hasReceipt && (
+                        <DropdownMenuItem onClick={() => onUploadClick(registration)}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Subir comprobante
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                         onClick={() => {
                             if (confirm("¿Estás seguro de eliminar esta inscripción?")) {
@@ -92,9 +103,87 @@ export function RegistrationsDataTable() {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [globalFilter, setGlobalFilter] = useState("")
+    const [uploadingRegistration, setUploadingRegistration] = useState<Registration | null>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [isUploading, setIsUploading] = useState(false)
     const trpc = useTRPC();
+    const queryClient = useQueryClient();
 
     const { data: registrations = [], isLoading } = useSuspenseQuery(trpc.registrations.byTeam.queryOptions());
+
+    // Upload receipt mutation
+    const updateReceipt = useMutation(
+        trpc.registrations.updatePaymentReceipt.mutationOptions({
+            onSuccess: async () => {
+                toast.success("Comprobante subido correctamente")
+                await queryClient.invalidateQueries(trpc.registrations.byTeam.pathFilter())
+                setUploadingRegistration(null)
+                setIsUploading(false)
+            },
+            onError: (err) => {
+                toast.error(err.message)
+                setIsUploading(false)
+            },
+        })
+    )
+
+    // Handle file upload
+    const handleFileUpload = async (file: File) => {
+        if (!uploadingRegistration) return
+        setIsUploading(true)
+
+        try {
+            let fileToUpload: Blob = file
+            let fileName = file.name
+            const isImage = file.type.startsWith('image/')
+
+            // Optimize images to webp using API
+            if (isImage) {
+                const optimizeFormData = new FormData()
+                optimizeFormData.append('file', file)
+
+                const optimizeResponse = await fetch('/api/optimize-image', {
+                    method: 'POST',
+                    body: optimizeFormData
+                })
+
+                if (optimizeResponse.ok) {
+                    fileToUpload = await optimizeResponse.blob()
+                    fileName = file.name.replace(/\.[^/.]+$/, '.webp')
+                }
+            }
+
+            // Upload via secure API route
+            const uploadFormData = new FormData()
+            uploadFormData.append('file', fileToUpload, fileName)
+            uploadFormData.append('eventId', uploadingRegistration.tournament.eventId)
+            uploadFormData.append('athleteId', uploadingRegistration.athleteId)
+
+            const response = await fetch('/api/storage/receipt', {
+                method: 'POST',
+                body: uploadFormData
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                toast.error("Error subiendo archivo: " + (error.error || 'Unknown error'))
+                setIsUploading(false)
+                return
+            }
+
+            const { path } = await response.json()
+
+            // Update in database
+            updateReceipt.mutate({
+                eventId: uploadingRegistration.tournament.eventId,
+                athleteId: uploadingRegistration.athleteId,
+                receiptUrl: path
+            })
+        } catch (err) {
+            toast.error("Error subiendo archivo")
+            setIsUploading(false)
+        }
+    }
 
     const columns: ColumnDef<Registration>[] = [
         {
@@ -205,8 +294,57 @@ export function RegistrationsDataTable() {
             },
         },
         {
+            accessorKey: 'paymentReceiptUrl',
+            header: 'Comprobante',
+            cell: function ReceiptCell({ row }) {
+                const path = row.original.paymentReceiptUrl
+                const isTournamentCompleted = row.original.tournament.status === "finished"
+                const [isLoading, setIsLoading] = useState(false)
+
+                // No receipt and tournament completed
+                if (!path && isTournamentCompleted) {
+                    return <span className="text-muted-foreground text-xs italic">No disponible</span>
+                }
+
+                // No receipt yet
+                if (!path) {
+                    return <span className="text-muted-foreground text-xs">-</span>
+                }
+
+                return (
+                    <button
+                        disabled={isLoading}
+                        onClick={async () => {
+                            setIsLoading(true)
+                            try {
+                                const response = await fetch(`/api/storage/receipt?path=${encodeURIComponent(path)}`)
+                                if (response.ok) {
+                                    const { url } = await response.json()
+                                    window.open(url, '_blank')
+                                } else {
+                                    toast.error("Error obteniendo comprobante")
+                                }
+                            } catch {
+                                toast.error("Error obteniendo comprobante")
+                            } finally {
+                                setIsLoading(false)
+                            }
+                        }}
+                        className="text-primary hover:underline text-xs flex items-center gap-1"
+                    >
+                        {isLoading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <FileText className="h-3 w-3" />
+                        )}
+                        Ver
+                    </button>
+                )
+            },
+        },
+        {
             id: 'actions',
-            cell: ({ row }) => <RegistrationActions registration={row.original} />
+            cell: ({ row }) => <RegistrationActions registration={row.original} onUploadClick={setUploadingRegistration} />
         }
     ]
 
@@ -345,6 +483,76 @@ export function RegistrationsDataTable() {
                 </Table>
             </div>
             <DataTablePagination table={table} />
+
+            {/* Upload Dialog with Drag & Drop */}
+            <Dialog open={!!uploadingRegistration} onOpenChange={(open) => !open && setUploadingRegistration(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Subir Comprobante de Pago</DialogTitle>
+                    </DialogHeader>
+                    <div
+                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${isDragging ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
+                            }`}
+                        onDragOver={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsDragging(true)
+                        }}
+                        onDragLeave={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsDragging(false)
+                        }}
+                        onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsDragging(false)
+                            const file = e.dataTransfer.files[0]
+                            if (file) {
+                                handleFileUpload(file)
+                            }
+                        }}
+                        onClick={() => {
+                            const input = document.getElementById('upload-dialog-file-input-reg') as HTMLInputElement
+                            input?.click()
+                        }}
+                    >
+                        <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            id="upload-dialog-file-input-reg"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                    handleFileUpload(file)
+                                }
+                                e.target.value = ''
+                            }}
+                        />
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="h-10 w-10 mx-auto text-primary mb-3 animate-spin" />
+                                <p className="text-sm text-muted-foreground">Subiendo...</p>
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                                <p className="text-sm text-muted-foreground mb-1">
+                                    {isDragging ? (
+                                        <span className="text-primary font-medium">Suelta el archivo aquí</span>
+                                    ) : (
+                                        <>Arrastra un archivo o <span className="text-primary underline">haz clic para seleccionar</span></>
+                                    )}
+                                </p>
+                                <p className="text-xs text-muted-foreground/70">
+                                    Imágenes (JPG, PNG, WEBP) o PDF
+                                </p>
+                            </>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

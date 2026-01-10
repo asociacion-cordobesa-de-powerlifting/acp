@@ -188,6 +188,8 @@ export const registrations = pgTable("registrations", (t) => ({
 
   status: registrationStatusEnum("status").notNull(),
 
+  paymentReceiptUrl: t.text("payment_receipt_url"),
+
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => /* @__PURE__ */ new Date()),
   deletedAt: t.timestamp(),

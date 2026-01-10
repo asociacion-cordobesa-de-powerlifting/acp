@@ -133,9 +133,9 @@ export const registrationsRouter = {
                 for (const nom of input.nominations) {
                     const tournamentsToSync: string[] = [];
                     const mainT = eventWithTournaments.find(t => t.id === nom.tournamentId);
-                    
+
                     if (!mainT) continue; // Skip if tournament not found
-                    
+
                     if (nom.divisionMode === "open_only") {
                         // Only register in Open division
                         const openT = eventWithTournaments.find(t =>
@@ -242,9 +242,9 @@ export const registrationsRouter = {
 
                     const tournamentsToSync: string[] = [];
                     const mainT = eventWithTournaments.find(t => t.id === nom.tournamentId);
-                    
+
                     if (!mainT) continue; // Skip if tournament not found
-                    
+
                     if (nom.divisionMode === "open_only") {
                         // Only register in Open division
                         const openT = eventWithTournaments.find(t =>
@@ -302,6 +302,45 @@ export const registrationsRouter = {
                         .where(inArray(registrations.id, regsToDelete.map(r => r.id)));
                 }
             });
+        }),
+
+    updatePaymentReceipt: protectedProcedure
+        .input(z.object({
+            eventId: z.string().uuid(),
+            athleteId: z.string().uuid(),
+            receiptUrl: z.string().nullable(), // Now stores path, not URL
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const team = await ctx.db.query.teamData.findFirst({
+                where: and(eq(teamData.userId, ctx.session.user.id), isNull(teamData.deletedAt))
+            });
+            if (!team) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes un equipo asociado." });
+
+            // Get all tournament IDs for this event
+            const eventTournaments = await ctx.db.query.tournament.findMany({
+                where: and(eq(tournament.eventId, input.eventId), isNull(tournament.deletedAt)),
+            });
+
+            if (!eventTournaments.length) throw new TRPCError({ code: "NOT_FOUND", message: "Evento no encontrado." });
+
+            const eventTournamentIds = eventTournaments.map(t => t.id);
+
+            // Update all registrations for this athlete in any tournament of this event
+            const result = await ctx.db.update(registrations)
+                .set({ paymentReceiptUrl: input.receiptUrl })
+                .where(and(
+                    eq(registrations.athleteId, input.athleteId),
+                    eq(registrations.teamId, team.id),
+                    inArray(registrations.tournamentId, eventTournamentIds),
+                    isNull(registrations.deletedAt)
+                ))
+                .returning();
+
+            if (result.length === 0) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "No se encontraron inscripciones para actualizar." });
+            }
+
+            return { updated: result.length };
         }),
 
     byTeam: protectedProcedure
@@ -447,7 +486,7 @@ export const registrationsRouter = {
                     orderBy: (registrations, { desc }) => [desc(registrations.createdAt)],
                 });
             }
-            
+
             // Get all registrations (no filter)
             return await ctx.db.query.registrations.findMany({
                 where: isNull(registrations.deletedAt),
