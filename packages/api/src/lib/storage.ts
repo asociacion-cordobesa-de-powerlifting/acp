@@ -1,13 +1,24 @@
-import { createClient } from '@supabase/supabase-js'
-
-// Use service role for full access (bypasses RLS)
-export const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const RECEIPT_BUCKET = 'payment-receipts'
 export const RESULTS_BUCKET = 'event-tournament-results'
+
+// Lazy-initialize Supabase admin client to avoid build-time errors when env vars are not available
+let _supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+    if (_supabaseAdmin) return _supabaseAdmin
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase environment variables are not configured (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)')
+    }
+
+    _supabaseAdmin = createClient(supabaseUrl, supabaseKey)
+    return _supabaseAdmin
+}
 
 /**
  * Delete receipt files from Supabase Storage by their paths
@@ -16,7 +27,7 @@ export const RESULTS_BUCKET = 'event-tournament-results'
 export async function deleteReceiptsByPaths(paths: string[]): Promise<void> {
     if (paths.length === 0) return
 
-    const { error } = await supabaseAdmin.storage
+    const { error } = await getSupabaseAdmin().storage
         .from(RECEIPT_BUCKET)
         .remove(paths)
 
@@ -37,7 +48,7 @@ export async function uploadResultsFile(
 ): Promise<string> {
     const filePath = `${eventId}/${fileName}`
 
-    const { error } = await supabaseAdmin.storage
+    const { error } = await getSupabaseAdmin().storage
         .from(RESULTS_BUCKET)
         .upload(filePath, file, {
             contentType,
@@ -50,7 +61,7 @@ export async function uploadResultsFile(
     }
 
     // Return the public URL
-    const { data } = supabaseAdmin.storage
+    const { data } = getSupabaseAdmin().storage
         .from(RESULTS_BUCKET)
         .getPublicUrl(filePath)
 
@@ -63,7 +74,7 @@ export async function uploadResultsFile(
 export async function deleteResultsFile(eventId: string, fileName: string): Promise<void> {
     const filePath = `${eventId}/${fileName}`
 
-    const { error } = await supabaseAdmin.storage
+    const { error } = await getSupabaseAdmin().storage
         .from(RESULTS_BUCKET)
         .remove([filePath])
 
@@ -71,3 +82,4 @@ export async function deleteResultsFile(eventId: string, fileName: string): Prom
         console.error('Failed to delete results file:', error)
     }
 }
+
