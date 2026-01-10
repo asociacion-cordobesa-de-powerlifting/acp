@@ -7,6 +7,7 @@ import {
     MapPinIcon,
     UsersIcon,
 } from '@acme/ui/icons';
+import { Download } from 'lucide-react';
 import {
     getLabelFromValue,
 } from '@acme/shared';
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
             trpc.registrations.publicByEventSlug.queryOptions({ slug })
         );
         return {
-            title: `${data.event.name} | ACP`,
+            title: `${data.event.name}`,
             description: `Información y atletas registrados para ${data.event.name}. ${data.event.venue}, ${data.event.location}.`,
             openGraph: {
                 title: data.event.name,
@@ -59,7 +60,7 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
         };
     } catch {
         return {
-            title: 'Evento no encontrado | ACP',
+            title: 'Evento no encontrado',
         };
     }
 }
@@ -143,7 +144,20 @@ export default async function EventPage({ params, searchParams }: EventPageProps
             {/* Tournaments/Modalities Section */}
             <section className="py-8 px-4 sm:px-6 lg:px-8 border-b border-border bg-muted/30">
                 <div className="max-w-6xl mx-auto">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Modalidades del Evento</h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-foreground">Modalidades del Evento</h2>
+                        {event.resultsUrl && (
+                            <a
+                                href={event.resultsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition font-medium text-sm"
+                            >
+                                <Download className="h-4 w-4" />
+                                Descargar Resultados
+                            </a>
+                        )}
+                    </div>
                     <div className="flex flex-wrap gap-3">
                         {event.tournaments.map(t => {
                             const statusInfo = TOURNAMENT_STATUS.find(s => s.value === t.status);

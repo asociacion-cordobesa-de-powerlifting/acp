@@ -101,6 +101,7 @@ export const event = pgTable("event", (t) => ({
   location: t.text().notNull(),
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }).notNull(),
+  resultsUrl: t.text('results_url'), // URL to results PDF in public bucket
 
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => new Date()),

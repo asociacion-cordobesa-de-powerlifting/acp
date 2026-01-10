@@ -11,7 +11,7 @@ import {
     type SortingState,
     type ColumnFiltersState,
 } from "@tanstack/react-table"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
     Table,
     TableBody,
@@ -33,7 +33,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu"
-import { ChevronDown, MoreHorizontal, Pencil, Trash2, Calendar, MapPin, Users } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Pencil, Trash2, Calendar, MapPin, Users, Upload, Loader2 } from "lucide-react"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Badge } from "@acme/ui/badge"
 import { useTRPC } from "~/trpc/react"
@@ -168,6 +168,8 @@ function EventActions({ event }: { event: EventWithTournaments }) {
     const queryClient = useQueryClient();
     const [openDelete, setOpenDelete] = useState(false)
     const [openEdit, setOpenEdit] = useState(false)
+    const [isUploadingResults, setIsUploadingResults] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const router = useRouter()
 
     const deleteEvent = useMutation(
@@ -183,8 +185,45 @@ function EventActions({ event }: { event: EventWithTournaments }) {
         })
     )
 
+    const handleResultsUpload = async (file: File) => {
+        setIsUploadingResults(true)
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('eventId', event.id)
+
+            const response = await fetch('/api/storage/results', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (!response.ok) {
+                throw new Error('Upload failed')
+            }
+
+            toast.success('Resultados subidos exitosamente')
+            await queryClient.invalidateQueries(trpc.tournaments.allEvents.pathFilter())
+        } catch (err) {
+            toast.error('Error subiendo resultados')
+        } finally {
+            setIsUploadingResults(false)
+        }
+    }
+
     return (
         <>
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleResultsUpload(file)
+                    e.target.value = ''
+                }}
+            />
+
             <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -233,6 +272,20 @@ function EventActions({ event }: { event: EventWithTournaments }) {
                     >
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar Evento
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            fileInputRef.current?.click()
+                        }}
+                        disabled={isUploadingResults}
+                    >
+                        {isUploadingResults ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Upload className="mr-2 h-4 w-4" />
+                        )}
+                        {event.resultsUrl ? 'Resubir Resultados' : 'Subir Resultados'}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setOpenDelete(true)}

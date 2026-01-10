@@ -1,10 +1,11 @@
 import { tournament, user, event, athlete, registrations } from "@acme/db/schema";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../trpc";
-import { or, ne, eq, desc, and, sql, not, isNull } from "@acme/db";
+import { or, ne, eq, desc, and, sql, not, isNull, isNotNull } from "@acme/db";
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { tournamentValidator, eventValidator, baseEventSchema } from "@acme/shared/validators";
 import { z } from "zod";
 import { cleanAndLowercase, generateShortId } from '@acme/shared'
+import { deleteReceiptsByPaths } from '../lib/storage'
 
 
 export const tournamentsRouter = {
@@ -215,6 +216,31 @@ export const tournamentsRouter = {
                 }
 
                 if (propagateStatus) {
+                    // If propagating 'finished' status, delete all receipts for this event
+                    if (propagateStatus === 'finished') {
+                        // Get all registrations with receipts for tournaments in this event
+                        const tournamentIds = tournaments.map(t => t.id)
+                        const regsWithReceipts = await tx.query.registrations.findMany({
+                            where: and(
+                                sql`${registrations.tournamentId} = ANY(ARRAY[${sql.raw(tournamentIds.map(id => `'${id}'`).join(','))}]::uuid[])`,
+                                isNotNull(registrations.paymentReceiptUrl)
+                            )
+                        })
+
+                        // Delete files from storage
+                        const paths = regsWithReceipts
+                            .map(r => r.paymentReceiptUrl)
+                            .filter((p): p is string => !!p)
+                        await deleteReceiptsByPaths(paths)
+
+                        // Clear receipt URLs in database
+                        if (tournamentIds.length > 0) {
+                            await tx.update(registrations)
+                                .set({ paymentReceiptUrl: null })
+                                .where(sql`${registrations.tournamentId} = ANY(ARRAY[${sql.raw(tournamentIds.map(id => `'${id}'`).join(','))}]::uuid[])`)
+                        }
+                    }
+
                     await tx.update(tournament)
                         .set({ status: propagateStatus })
                         .where(eq(tournament.eventId, id));
@@ -281,6 +307,28 @@ export const tournamentsRouter = {
                 if (collision) {
                     throw new TRPCError({ code: 'CONFLICT', message: 'Ya existe una modalidad con estos mismos atributos para este evento' });
                 }
+            }
+
+            // If changing status to 'finished', delete all receipts for this tournament
+            if (data.status === 'finished' && existingTournament.status !== 'finished') {
+                // Get registrations with receipts
+                const regsWithReceipts = await ctx.db.query.registrations.findMany({
+                    where: and(
+                        eq(registrations.tournamentId, id),
+                        isNotNull(registrations.paymentReceiptUrl)
+                    )
+                })
+
+                // Delete files from storage
+                const paths = regsWithReceipts
+                    .map(r => r.paymentReceiptUrl)
+                    .filter((p): p is string => !!p)
+                await deleteReceiptsByPaths(paths)
+
+                // Clear receipt URLs in database
+                await ctx.db.update(registrations)
+                    .set({ paymentReceiptUrl: null })
+                    .where(eq(registrations.tournamentId, id))
             }
 
             const [updated] = await ctx.db.update(tournament)
