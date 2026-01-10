@@ -54,14 +54,14 @@ export const metadata: Metadata = {
     siteName: 'ACP',
     locale: 'es_AR',
     type: 'website',
-    images: [
-      {
-        url: '/og-image.jpg',
-        width: 630,
-        height: 630,
-        alt: 'ACP - Asociación Cordobesa de Powerlifting',
-      },
-    ],
+    // images: [
+    //   {
+    //     url: '/og-image.jpg',
+    //     width: 630,
+    //     height: 630,
+    //     alt: 'ACP - Asociación Cordobesa de Powerlifting',
+    //   },
+    // ],
   },
   twitter: {
     card: 'summary_large_image',
