@@ -6,13 +6,19 @@ import { teamData, registrations, tournament, athlete } from '@acme/db/schema'
 import { eq, and, isNull, inArray } from '@acme/db'
 import { auth } from '~/auth/server'
 
-// Use service role for full access (bypasses RLS)
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 const BUCKET_NAME = 'payment-receipts'
+
+// Lazy-initialize Supabase client to avoid build-time errors when env vars are not available
+function getSupabaseAdmin() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase environment variables are not configured')
+    }
+
+    return createClient(supabaseUrl, supabaseKey)
+}
 
 // Generate a fresh signed URL for viewing a receipt
 export async function GET(request: NextRequest) {
@@ -49,7 +55,7 @@ export async function GET(request: NextRequest) {
         // Generate signed URL (valid for 1 year for better CDN cache hits)
         // Long-lived URLs = more cache hits = cheaper egress ($0.03/GB vs $0.09/GB)
         const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
-        const { data, error } = await supabaseAdmin.storage
+        const { data, error } = await getSupabaseAdmin().storage
             .from(BUCKET_NAME)
             .createSignedUrl(path, ONE_YEAR_SECONDS)
 
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
 
         // Upload using service role
         const buffer = Buffer.from(await file.arrayBuffer())
-        const { error: uploadError } = await supabaseAdmin.storage
+        const { error: uploadError } = await getSupabaseAdmin().storage
             .from(BUCKET_NAME)
             .upload(filePath, buffer, {
                 upsert: true,
@@ -145,7 +151,7 @@ export async function DELETE(request: NextRequest) {
 
         // List files in the athlete's folder to find and delete
         const folderPath = `${team.id}/${eventId}/${athleteId}`
-        const { data: files, error: listError } = await supabaseAdmin.storage
+        const { data: files, error: listError } = await getSupabaseAdmin().storage
             .from(BUCKET_NAME)
             .list(folderPath)
 
@@ -156,7 +162,7 @@ export async function DELETE(request: NextRequest) {
 
         if (files && files.length > 0) {
             const filesToDelete = files.map(f => `${folderPath}/${f.name}`)
-            const { error: deleteError } = await supabaseAdmin.storage
+            const { error: deleteError } = await getSupabaseAdmin().storage
                 .from(BUCKET_NAME)
                 .remove(filesToDelete)
 

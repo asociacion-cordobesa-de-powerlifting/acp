@@ -6,13 +6,19 @@ import { event } from '@acme/db/schema'
 import { eq } from '@acme/db'
 import { auth } from '~/auth/server'
 
-// Use service role for upload access
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 const BUCKET_NAME = 'event-tournament-results'
+
+// Lazy-initialize Supabase client to avoid build-time errors when env vars are not available
+function getSupabaseAdmin() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase environment variables are not configured')
+    }
+
+    return createClient(supabaseUrl, supabaseKey)
+}
 
 // Upload results file for an event (admin only)
 export async function POST(request: NextRequest) {
@@ -51,9 +57,9 @@ export async function POST(request: NextRequest) {
         const buffer = await file.arrayBuffer()
 
         // Delete existing file if any
-        await supabaseAdmin.storage.from(BUCKET_NAME).remove([filePath])
+        await getSupabaseAdmin().storage.from(BUCKET_NAME).remove([filePath])
 
-        const { error: uploadError } = await supabaseAdmin.storage
+        const { error: uploadError } = await getSupabaseAdmin().storage
             .from(BUCKET_NAME)
             .upload(filePath, buffer, {
                 contentType: file.type,
@@ -66,7 +72,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get public URL
-        const { data: urlData } = supabaseAdmin.storage
+        const { data: urlData } = getSupabaseAdmin().storage
             .from(BUCKET_NAME)
             .getPublicUrl(filePath)
 
@@ -104,7 +110,7 @@ export async function DELETE(request: NextRequest) {
 
         // Delete file from storage
         const filePath = `${eventId}/results.pdf`
-        await supabaseAdmin.storage.from(BUCKET_NAME).remove([filePath])
+        await getSupabaseAdmin().storage.from(BUCKET_NAME).remove([filePath])
 
         // Clear URL from database
         await db.update(event)
