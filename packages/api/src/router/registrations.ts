@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, adminProcedure } from "../trpc";
+import { protectedProcedure, adminProcedure, publicProcedure } from "../trpc";
 import { registrations, tournament, athlete, teamData, weightClassEnum, event, registrationStatusEnum } from "@acme/db/schema";
 import { TRPCError, TRPCRouterRecord } from "@trpc/server";
 import { eq, and, isNull, inArray, desc } from "@acme/db";
@@ -7,6 +7,73 @@ import { registrationValidator, updateRegistrationSchema } from "@acme/shared/va
 import { canAthleteParticipateIn, getEligibleWeightClasses } from "@acme/shared";
 
 export const registrationsRouter = {
+    // Public endpoint - get event details with approved registrations by event slug
+    publicByEventSlug: publicProcedure
+        .input(z.object({ slug: z.string() }))
+        .query(async ({ ctx, input }) => {
+            // Find event by slug
+            const eventData = await ctx.db.query.event.findFirst({
+                where: and(eq(event.slug, input.slug), isNull(event.deletedAt)),
+                with: {
+                    tournaments: {
+                        where: isNull(tournament.deletedAt),
+                    }
+                }
+            });
+
+            if (!eventData) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Evento no encontrado." });
+            }
+
+            const tournamentIds = eventData.tournaments.map(t => t.id);
+
+            if (tournamentIds.length === 0) {
+                return {
+                    event: eventData,
+                    registrations: [],
+                };
+            }
+
+            // Get all approved registrations for this event
+            const allRegistrations = await ctx.db.query.registrations.findMany({
+                where: and(
+                    inArray(registrations.tournamentId, tournamentIds),
+                    eq(registrations.status, 'approved'),
+                    isNull(registrations.deletedAt)
+                ),
+                with: {
+                    athlete: true,
+                    tournament: true,
+                    team: { with: { user: true } }
+                },
+                orderBy: [desc(registrations.createdAt)],
+            });
+
+            // Return only public info (no DNI, no payment receipts)
+            return {
+                event: eventData,
+                registrations: allRegistrations.map(r => ({
+                    id: r.id,
+                    tournamentId: r.tournamentId,
+                    weightClass: r.weightClass,
+                    tournament: {
+                        id: r.tournament.id,
+                        division: r.tournament.division,
+                        modality: r.tournament.modality,
+                        equipment: r.tournament.equipment,
+                        status: r.tournament.status,
+                    },
+                    athlete: {
+                        id: r.athlete.id,
+                        fullName: r.athlete.fullName,
+                        birthYear: r.athlete.birthYear,
+                        gender: r.athlete.gender,
+                    },
+                    teamName: r.team.user.name,
+                })),
+            };
+        }),
+
     create: protectedProcedure
         .input(registrationValidator)
         .mutation(async ({ ctx, input }) => {

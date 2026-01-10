@@ -4,14 +4,16 @@ import SegmentsSection from './_components/landing/segments-section';
 import StepsSection from './_components/landing/steps-section';
 import UpcomingTournamentsSection from './_components/landing/upcoming-tournaments-section';
 import TeamsSection from './_components/landing/teams-section';
-import AthletesSection from './_components/landing/athletes-section';
+// import AthletesSection from './_components/landing/athletes-section';
 import { Footer } from './_components/landing/footer';
+import { getSession } from '~/auth/server';
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await getSession();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
+      <Navbar session={session} />
 
       {/* Hero Section with Video */}
       <HeroVideo />
@@ -19,17 +21,17 @@ export default function LandingPage() {
       {/* For Whom Section */}
       <SegmentsSection />
 
-      {/* How It Works Section */}
-      <StepsSection />
-
       {/* Upcoming Tournaments Section */}
       <UpcomingTournamentsSection />
 
       {/* Teams Section */}
       <TeamsSection />
 
+      {/* How It Works Section */}
+      <StepsSection />
+
       {/* Athletes Section */}
-      <AthletesSection />
+      {/* <AthletesSection /> */}
 
       {/* Contact Section */}
       <section id="contacto" className="py-20 px-4 sm:px-6 lg:px-8">
