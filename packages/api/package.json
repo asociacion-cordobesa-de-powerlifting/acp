@@ -21,7 +21,7 @@
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
     "@acme/shared": "workspace:*",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.90.1",
     "@trpc/server": "catalog:",
     "superjson": "2.2.3",
     "zod": "catalog:"
