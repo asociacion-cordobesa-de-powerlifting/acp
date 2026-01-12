@@ -62,7 +62,6 @@ const GENDER_OPTIONS = [
 function AthleteActions({ athlete }: { athlete: Athlete }) {
     const [showEditDialog, setShowEditDialog] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-    const [showRegisterDialog, setShowRegisterDialog] = useState(false)
     const trpc = useTRPC()
     const queryClient = useQueryClient()
 
@@ -122,10 +121,6 @@ function AthleteActions({ athlete }: { athlete: Athlete }) {
                     <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowRegisterDialog(true)}>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Inscribir a torneo
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setShowDeleteDialog(true)}
