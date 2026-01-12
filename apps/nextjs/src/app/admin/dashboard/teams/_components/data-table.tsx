@@ -75,15 +75,45 @@ function TeamActions({ team }: { team: TeamWithUser }) {
     const [isBanDialogOpen, setIsBanDialogOpen] = useState(false)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [banReason, setBanReason] = useState("")
+    const [banDuration, setBanDuration] = useState<string>("")
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
     const handleBanUser = async () => {
-        const { error } = await authClient.admin.banUser({ userId: team.user.id });
+        // Build ban options
+        const banOptions: { userId: string; banReason?: string; banExpiresIn?: number } = {
+            userId: team.user.id,
+        };
+
+        if (banReason.trim()) {
+            banOptions.banReason = banReason.trim();
+        }
+
+        if (banDuration) {
+            // Convert duration to seconds
+            const durationInSeconds = parseInt(banDuration) * 60 * 60; // hours to seconds
+            banOptions.banExpiresIn = durationInSeconds;
+        }
+
+        const { error } = await authClient.admin.banUser(banOptions);
         if (error) {
             toast.error(error.message);
         } else {
-            toast.success(team.user.banned ? "Equipo desbaneado correctamente" : "Equipo baneado correctamente");
+            toast.success("Equipo baneado correctamente");
+            void queryClient.invalidateQueries(trpc.teams.listWithTeamData.pathFilter());
+            // Reset form
+            setBanReason("");
+            setBanDuration("");
+        }
+    };
+
+    const handleUnbanUser = async () => {
+        const { error } = await authClient.admin.unbanUser({ userId: team.user.id });
+        if (error) {
+            toast.error(error.message);
+        } else {
+            toast.success("Equipo desbaneado correctamente");
             void queryClient.invalidateQueries(trpc.teams.listWithTeamData.pathFilter());
         }
     };
@@ -145,7 +175,13 @@ function TeamActions({ team }: { team: TeamWithUser }) {
             />
 
             {/* Ban/Unban Dialog */}
-            <AlertDialog open={isBanDialogOpen} onOpenChange={setIsBanDialogOpen}>
+            <AlertDialog open={isBanDialogOpen} onOpenChange={(open) => {
+                setIsBanDialogOpen(open);
+                if (!open) {
+                    setBanReason("");
+                    setBanDuration("");
+                }
+            }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿{team.user.banned ? 'Desbanear' : 'Banear'} a este equipo?</AlertDialogTitle>
@@ -155,10 +191,49 @@ function TeamActions({ team }: { team: TeamWithUser }) {
                                 : "El equipo perderá el acceso a la plataforma hasta que sea desbaneado."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+
+                    {/* Ban options - only show when banning, not unbanning */}
+                    {!team.user.banned && (
+                        <div className="space-y-4 py-2">
+                            <div className="space-y-2">
+                                <label htmlFor="ban-reason" className="text-sm font-medium">
+                                    Razón del ban (opcional)
+                                </label>
+                                <Input
+                                    id="ban-reason"
+                                    placeholder="Ej: Incumplimiento de normas"
+                                    value={banReason}
+                                    onChange={(e) => setBanReason(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label htmlFor="ban-duration" className="text-sm font-medium">
+                                    Duración del ban (opcional)
+                                </label>
+                                <select
+                                    id="ban-duration"
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    value={banDuration}
+                                    onChange={(e) => setBanDuration(e.target.value)}
+                                >
+                                    <option value="">Permanente</option>
+                                    <option value="1">1 hora</option>
+                                    <option value="24">24 horas</option>
+                                    <option value="168">1 semana</option>
+                                    <option value="720">30 días</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={() => {
-                            void handleBanUser();
+                            if (team.user.banned) {
+                                void handleUnbanUser();
+                            } else {
+                                void handleBanUser();
+                            }
                             setIsBanDialogOpen(false);
                         }}>
                             Confirmar

@@ -4,6 +4,7 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { Eye, EyeOff } from "lucide-react";
 
 import { cn } from "@acme/ui";
 import { Button } from "@acme/ui/button";
@@ -53,6 +54,7 @@ export default function LoginForm({
   const router = useRouter();
 
   const [isPending, setIsPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -161,17 +163,31 @@ export default function LoginForm({
                     <FieldContent>
                       <FieldLabel htmlFor={field.name}>Contraseña</FieldLabel>
                     </FieldContent>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      aria-invalid={isInvalid}
-                      placeholder="••••••••"
-                      type="password"
-                      className={inputClassName}
-                    />
+                    <div className="relative">
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        aria-invalid={isInvalid}
+                        placeholder="••••••••"
+                        type={showPassword ? "text" : "password"}
+                        className={cn("pr-10", inputClassName)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                   </Field>
                 );

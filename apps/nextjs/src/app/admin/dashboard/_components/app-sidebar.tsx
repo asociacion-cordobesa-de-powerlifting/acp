@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight, ChevronsUpDown, ClipboardList, LogOut, Trophy, User2, Users } from "lucide-react"
+import { ChevronRight, ChevronsUpDown, ClipboardList, Home, LogOut, Trophy, User2, Users } from "lucide-react"
 
 import {
     DropdownMenu,
@@ -23,6 +23,7 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    SidebarSeparator,
 } from "@acme/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@acme/ui/collapsible"
 import Image from "next/image"
@@ -154,6 +155,22 @@ export function AppSidebar({
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
+            <SidebarSeparator />
+            <SidebarGroup>
+                {/* <SidebarGroupLabel>Información</SidebarGroupLabel> */}
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild size={"sm"}>
+                                <a href="/">
+                                    <Home />
+                                    <span>Inicio</span>
+                                </a>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>

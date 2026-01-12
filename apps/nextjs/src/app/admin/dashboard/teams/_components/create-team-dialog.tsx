@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
-import { Loader2, Plus } from "lucide-react"
+import { Eye, EyeOff, Loader2, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@acme/ui/button"
@@ -46,6 +46,7 @@ const formSchema = z.object({
 
 export function CreateTeamDialog() {
     const [open, setOpen] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
@@ -159,16 +160,31 @@ export function CreateTeamDialog() {
                                         <FieldContent>
                                             <FieldLabel htmlFor={field.name}>Contraseña</FieldLabel>
                                         </FieldContent>
-                                        <Input
-                                            id={field.name}
-                                            name={field.name}
-                                            type="password"
-                                            value={field.state.value}
-                                            onBlur={field.handleBlur}
-                                            onChange={(e) => field.handleChange(e.target.value)}
-                                            placeholder="******"
-                                            aria-invalid={isInvalid}
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                id={field.name}
+                                                name={field.name}
+                                                type={showPassword ? "text" : "password"}
+                                                value={field.state.value}
+                                                onBlur={field.handleBlur}
+                                                onChange={(e) => field.handleChange(e.target.value)}
+                                                placeholder="******"
+                                                aria-invalid={isInvalid}
+                                                className="pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                tabIndex={-1}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                         {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                     </Field>
                                 )

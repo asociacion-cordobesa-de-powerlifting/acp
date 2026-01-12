@@ -12,7 +12,7 @@ import { cn } from '@acme/ui';
 const navigation = [
   { name: 'Inicio', section: 'inicio' },
   { name: 'Torneos', section: 'torneos' },
-  { name: 'Equipos', section: 'equipos' },
+  // { name: 'Equipos', section: 'equipos' },
   { name: 'Cómo funciona', section: 'como-funciona' },
   { name: 'Contacto', section: 'contacto' },
 ];
