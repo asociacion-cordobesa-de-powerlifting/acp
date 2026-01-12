@@ -49,7 +49,7 @@
   --chart-5: oklch(0.7579 0.1505 81.5781);
 
   /* Radius (Updated) */
-  --radius: 0.42rem;
+  --radius: 0.3rem;
 
   /* Sidebar (KEPT OLD to match Primary/Brand) */
   --sidebar: oklch(0.985 0 0);

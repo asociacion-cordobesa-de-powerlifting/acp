@@ -102,7 +102,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Editar Atleta</DialogTitle>
                     <DialogDescription>
@@ -116,42 +116,18 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                         e.stopPropagation()
                         void form.handleSubmit()
                     }}
-                    className="space-y-4"
+                    className="flex flex-col flex-1 overflow-hidden"
                 >
-                    <FieldGroup>
-                        <form.Field
-                            name="fullName"
-                            children={(field) => {
-                                const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                return (
-                                    <Field data-invalid={isInvalid}>
-                                        <FieldContent>
-                                            <FieldLabel htmlFor={field.name}>Nombre Completo</FieldLabel>
-                                        </FieldContent>
-                                        <Input
-                                            id={field.name}
-                                            name={field.name}
-                                            value={field.state.value}
-                                            onBlur={field.handleBlur}
-                                            onChange={(e) => field.handleChange(e.target.value)}
-                                            placeholder="Ej: Maxi Zeballos"
-                                            aria-invalid={isInvalid}
-                                        />
-                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                    </Field>
-                                )
-                            }}
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                        <FieldGroup>
                             <form.Field
-                                name="dni"
+                                name="fullName"
                                 children={(field) => {
                                     const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                     return (
                                         <Field data-invalid={isInvalid}>
                                             <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>DNI</FieldLabel>
+                                                <FieldLabel htmlFor={field.name}>Nombre Completo</FieldLabel>
                                             </FieldContent>
                                             <Input
                                                 id={field.name}
@@ -159,7 +135,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                                 value={field.state.value}
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
-                                                placeholder="Ej: 12345678"
+                                                placeholder="Ej: Maxi Zeballos"
                                                 aria-invalid={isInvalid}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -168,79 +144,23 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                 }}
                             />
 
-                            <form.Field
-                                name="birthYear"
-                                children={(field) => {
-                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={isInvalid}>
-                                            <FieldContent>
-                                                <FieldLabel htmlFor={field.name}>Año de Nacimiento</FieldLabel>
-                                            </FieldContent>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                type="number"
-                                                value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                placeholder="Ej: 1995"
-                                                aria-invalid={isInvalid}
-                                            />
-                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                        </Field>
-                                    )
-                                }}
-                            />
-                        </div>
-
-                        <form.Field
-                            name="gender"
-                            children={(field) => {
-                                const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                return (
-                                    <Field data-invalid={isInvalid}>
-                                        <FieldContent>
-                                            <FieldLabel htmlFor={field.name}>Género</FieldLabel>
-                                        </FieldContent>
-                                        <Select
-                                            value={field.state.value}
-                                            onValueChange={(val: "M" | "F") => field.handleChange(val)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Seleccione género" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="M">Masculino</SelectItem>
-                                                <SelectItem value="F">Femenino</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                    </Field>
-                                )
-                            }}
-                        />
-
-                        <div className="pt-2">
-                            <h4 className="text-sm font-medium mb-3">Mejores Marcas (Kg)</h4>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <form.Field
-                                    name="squatBestKg"
+                                    name="dni"
                                     children={(field) => {
                                         const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                         return (
                                             <Field data-invalid={isInvalid}>
                                                 <FieldContent>
-                                                    <FieldLabel htmlFor={field.name}>Sentadilla</FieldLabel>
+                                                    <FieldLabel htmlFor={field.name}>DNI</FieldLabel>
                                                 </FieldContent>
                                                 <Input
                                                     id={field.name}
                                                     name={field.name}
-                                                    type="number"
-                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
+                                                    value={field.state.value}
                                                     onBlur={field.handleBlur}
-                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                    placeholder="Ej: 100"
+                                                    onChange={(e) => field.handleChange(e.target.value)}
+                                                    placeholder="Ej: 12345678"
                                                     aria-invalid={isInvalid}
                                                 />
                                                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -248,14 +168,15 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                         )
                                     }}
                                 />
+
                                 <form.Field
-                                    name="benchBestKg"
+                                    name="birthYear"
                                     children={(field) => {
                                         const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
                                         return (
                                             <Field data-invalid={isInvalid}>
                                                 <FieldContent>
-                                                    <FieldLabel htmlFor={field.name}>Banca</FieldLabel>
+                                                    <FieldLabel htmlFor={field.name}>Año de Nacimiento</FieldLabel>
                                                 </FieldContent>
                                                 <Input
                                                     id={field.name}
@@ -264,31 +185,7 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                                     value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
                                                     onBlur={field.handleBlur}
                                                     onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                    placeholder="Ej: 80"
-                                                    aria-invalid={isInvalid}
-                                                />
-                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                            </Field>
-                                        )
-                                    }}
-                                />
-                                <form.Field
-                                    name="deadliftBestKg"
-                                    children={(field) => {
-                                        const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                                        return (
-                                            <Field data-invalid={isInvalid}>
-                                                <FieldContent>
-                                                    <FieldLabel htmlFor={field.name}>Despegue</FieldLabel>
-                                                </FieldContent>
-                                                <Input
-                                                    id={field.name}
-                                                    name={field.name}
-                                                    type="number"
-                                                    value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
-                                                    onBlur={field.handleBlur}
-                                                    onChange={(e) => field.handleChange(e.target.valueAsNumber)}
-                                                    placeholder="Ej: 120"
+                                                    placeholder="Ej: 1995"
                                                     aria-invalid={isInvalid}
                                                 />
                                                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -297,13 +194,118 @@ export function EditAthleteDialog({ athlete, open, onOpenChange }: EditAthleteDi
                                     }}
                                 />
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-2 italic">
-                                * Estos datos son aproximados y sirven para la organización inicial de los grupos.
-                            </p>
-                        </div>
 
-                    </FieldGroup>
-                    <DialogFooter>
+                            <form.Field
+                                name="gender"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Género</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val: "M" | "F") => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccione género" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="M">Masculino</SelectItem>
+                                                    <SelectItem value="F">Femenino</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+
+                            <div className="pt-2">
+                                <h4 className="text-sm font-medium mb-3">Mejores Marcas (Kg)</h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <form.Field
+                                        name="squatBestKg"
+                                        children={(field) => {
+                                            const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                            return (
+                                                <Field data-invalid={isInvalid}>
+                                                    <FieldContent>
+                                                        <FieldLabel htmlFor={field.name}>Sentadilla</FieldLabel>
+                                                    </FieldContent>
+                                                    <Input
+                                                        id={field.name}
+                                                        name={field.name}
+                                                        type="number"
+                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
+                                                        onBlur={field.handleBlur}
+                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                        placeholder="Ej: 100"
+                                                        aria-invalid={isInvalid}
+                                                    />
+                                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                </Field>
+                                            )
+                                        }}
+                                    />
+                                    <form.Field
+                                        name="benchBestKg"
+                                        children={(field) => {
+                                            const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                            return (
+                                                <Field data-invalid={isInvalid}>
+                                                    <FieldContent>
+                                                        <FieldLabel htmlFor={field.name}>Banca</FieldLabel>
+                                                    </FieldContent>
+                                                    <Input
+                                                        id={field.name}
+                                                        name={field.name}
+                                                        type="number"
+                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
+                                                        onBlur={field.handleBlur}
+                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                        placeholder="Ej: 80"
+                                                        aria-invalid={isInvalid}
+                                                    />
+                                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                </Field>
+                                            )
+                                        }}
+                                    />
+                                    <form.Field
+                                        name="deadliftBestKg"
+                                        children={(field) => {
+                                            const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                            return (
+                                                <Field data-invalid={isInvalid}>
+                                                    <FieldContent>
+                                                        <FieldLabel htmlFor={field.name}>Despegue</FieldLabel>
+                                                    </FieldContent>
+                                                    <Input
+                                                        id={field.name}
+                                                        name={field.name}
+                                                        type="number"
+                                                        value={Number.isNaN(field.state.value) ? "" : (field.state.value ?? "")}
+                                                        onBlur={field.handleBlur}
+                                                        onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                                                        placeholder="Ej: 120"
+                                                        aria-invalid={isInvalid}
+                                                    />
+                                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                                </Field>
+                                            )
+                                        }}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                                    * Estos datos son aproximados y sirven para la organización inicial de los grupos.
+                                </p>
+                            </div>
+
+                        </FieldGroup>
+                    </div>
+                    <DialogFooter className="pt-4 border-t mt-4">
                         <Button type="submit" disabled={updateAthlete.isPending}>
                             {updateAthlete.isPending && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

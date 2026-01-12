@@ -40,8 +40,7 @@ import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_DIVISION, MODALITIES, EQUIPMENT, TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { dayjs } from "@acme/shared/libs"
 import { EyeIcon, UserPlusIcon, UsersIcon } from "@acme/ui/icons"
-// import { BulkRegistrationDialog } from "../../_components/bulk-registration-dialog"
-import { EventNominationDialog } from "./event-nomination-dialog"
+import Link from "next/link"
 
 type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
 type Tournament = EventWithTournaments["tournaments"][number]
@@ -91,7 +90,6 @@ function EventRow({
     columns: ColumnDef<EventWithTournaments>[]
 }) {
     const [isOpen, setIsOpen] = useState(false)
-    const [showNomination, setShowNomination] = useState(false)
     const event = row.original as EventWithTournaments
     const hasTournaments = event.tournaments && event.tournaments.length > 0
 
@@ -116,17 +114,18 @@ function EventRow({
                                             <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                                         )}
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        <Button
-                                            variant="outline"
-                                            className="h-6 text-[9px] gap-1 px-1.5 ml-2"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowNomination(true);
-                                            }}
+                                        <Link
+                                            href={`/team/dashboard/registrations/register-team?eventId=${event.id}`}
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            <UsersIcon className="h-3 w-3" />
-                                            Nómina
-                                        </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="h-6 text-[9px] gap-1 px-1.5 ml-2"
+                                            >
+                                                <UsersIcon className="h-3 w-3" />
+                                                Nómina
+                                            </Button>
+                                        </Link>
                                     </div>
                                 )}
                                 {cell.column.id !== 'name' && flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -177,11 +176,6 @@ function EventRow({
                     )}
                 </TableBody>
             </Collapsible>
-            <EventNominationDialog
-                event={event}
-                open={showNomination}
-                onOpenChange={setShowNomination}
-            />
         </>
     )
 }

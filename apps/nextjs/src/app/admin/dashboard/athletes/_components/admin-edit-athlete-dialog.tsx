@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Loader2, Plus, UserPlus } from "lucide-react"
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
+import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@acme/ui/button"
@@ -14,7 +14,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@acme/ui/dialog"
 import {
     Field,
@@ -34,24 +33,31 @@ import {
 import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
 import { athleteValidator } from "@acme/shared/validators"
-import * as z from 'zod/v4'
+import { RouterOutputs } from "@acme/api"
 
-import { dayjs } from "@acme/shared/libs"
+type AthleteWithTeam = RouterOutputs["athletes"]["listAll"][number]
 
-export function CreateAthleteDialog() {
-    const [open, setOpen] = useState(false)
+interface AdminEditAthleteDialogProps {
+    athlete: AthleteWithTeam
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}
+
+export function AdminEditAthleteDialog({ athlete, open, onOpenChange }: AdminEditAthleteDialogProps) {
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
-    const createAthlete = useMutation(
-        trpc.athletes.create.mutationOptions({
+    // Get teams for the dropdown
+    const { data: teams = [] } = useQuery(trpc.teams.listWithTeamData.queryOptions())
+
+    const updateAthlete = useMutation(
+        trpc.athletes.adminUpdate.mutationOptions({
             onSuccess: async () => {
-                toast.success("Atleta creado exitosamente")
-                setOpen(false)
-                form.reset()
+                toast.success("Atleta actualizado exitosamente")
+                onOpenChange(false)
                 router.refresh()
-                await queryClient.invalidateQueries(trpc.athletes.list.pathFilter())
+                await queryClient.invalidateQueries(trpc.athletes.listAll.pathFilter())
             },
             onError: (err) => {
                 toast.error(err.message)
@@ -59,39 +65,50 @@ export function CreateAthleteDialog() {
         })
     )
 
-    const defaultValues: z.input<typeof athleteValidator> = {
-        fullName: "",
-        dni: "",
-        birthYear: dayjs().year() - 18,
-        gender: "M" as "M" | "F",
-        squatBestKg: 0,
-        benchBestKg: 0,
-        deadliftBestKg: 0,
-    }
-
     const form = useForm({
-        defaultValues,
+        defaultValues: {
+            id: athlete.id,
+            teamId: athlete.teamId,
+            fullName: athlete.fullName,
+            dni: athlete.dni,
+            birthYear: athlete.birthYear ?? 2000,
+            gender: athlete.gender as "M" | "F",
+            squatBestKg: athlete.squatBestKg ?? 0,
+            benchBestKg: athlete.benchBestKg ?? 0,
+            deadliftBestKg: athlete.deadliftBestKg ?? 0,
+        },
         validators: {
-            onChange: athleteValidator,
+            onChange: athleteValidator as any,
         },
         onSubmit: ({ value }) => {
-            createAthlete.mutate(value)
+            updateAthlete.mutate(value as any)
         },
     })
 
+    // Reset form when athlete changes
+    useEffect(() => {
+        if (open) {
+            form.reset({
+                id: athlete.id,
+                teamId: athlete.teamId,
+                fullName: athlete.fullName,
+                dni: athlete.dni,
+                birthYear: athlete.birthYear ?? 2000,
+                gender: athlete.gender as "M" | "F",
+                squatBestKg: athlete.squatBestKg ?? 0,
+                benchBestKg: athlete.benchBestKg ?? 0,
+                deadliftBestKg: athlete.deadliftBestKg ?? 0,
+            })
+        }
+    }, [athlete, open, form])
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Registrar Atleta
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>Registrar Nuevo Atleta</DialogTitle>
+                    <DialogTitle>Editar Atleta</DialogTitle>
                     <DialogDescription>
-                        Ingrese los datos del atleta para sumarlo a su equipo.
+                        Modifique los datos del atleta. Puede cambiar el equipo asignado.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -123,6 +140,36 @@ export function CreateAthleteDialog() {
                                                 placeholder="Ej: Maxi Zeballos"
                                                 aria-invalid={isInvalid}
                                             />
+                                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                        </Field>
+                                    )
+                                }}
+                            />
+
+                            <form.Field
+                                name="teamId"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Equipo</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccione equipo" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {teams.map((team) => (
+                                                        <SelectItem key={team.id} value={team.id}>
+                                                            {team.user.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                         </Field>
                                     )
@@ -283,19 +330,16 @@ export function CreateAthleteDialog() {
                                         }}
                                     />
                                 </div>
-                                <p className="text-[10px] text-muted-foreground mt-2 italic">
-                                    * Estos datos son aproximados y sirven para la organización inicial de los grupos.
-                                </p>
                             </div>
 
                         </FieldGroup>
                     </div>
                     <DialogFooter className="pt-4 border-t mt-4">
-                        <Button type="submit" disabled={createAthlete.isPending}>
-                            {createAthlete.isPending && (
+                        <Button type="submit" disabled={updateAthlete.isPending}>
+                            {updateAthlete.isPending && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
-                            Registrar
+                            Guardar Cambios
                         </Button>
                     </DialogFooter>
                 </form>

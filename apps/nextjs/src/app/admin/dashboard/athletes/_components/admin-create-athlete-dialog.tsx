@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Loader2, Plus, UserPlus } from "lucide-react"
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
+import { Loader2, UserPlus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@acme/ui/button"
@@ -35,23 +35,25 @@ import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
 import { athleteValidator } from "@acme/shared/validators"
 import * as z from 'zod/v4'
-
 import { dayjs } from "@acme/shared/libs"
 
-export function CreateAthleteDialog() {
+export function AdminCreateAthleteDialog() {
     const [open, setOpen] = useState(false)
     const router = useRouter()
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
+    // Get teams for the dropdown
+    const { data: teams = [] } = useQuery(trpc.teams.listWithTeamData.queryOptions())
+
     const createAthlete = useMutation(
-        trpc.athletes.create.mutationOptions({
+        trpc.athletes.adminCreate.mutationOptions({
             onSuccess: async () => {
                 toast.success("Atleta creado exitosamente")
                 setOpen(false)
                 form.reset()
                 router.refresh()
-                await queryClient.invalidateQueries(trpc.athletes.list.pathFilter())
+                await queryClient.invalidateQueries(trpc.athletes.listAll.pathFilter())
             },
             onError: (err) => {
                 toast.error(err.message)
@@ -59,7 +61,8 @@ export function CreateAthleteDialog() {
         })
     )
 
-    const defaultValues: z.input<typeof athleteValidator> = {
+    const defaultValues = {
+        teamId: "",
         fullName: "",
         dni: "",
         birthYear: dayjs().year() - 18,
@@ -72,10 +75,14 @@ export function CreateAthleteDialog() {
     const form = useForm({
         defaultValues,
         validators: {
-            onChange: athleteValidator,
+            onChange: athleteValidator as any,
         },
         onSubmit: ({ value }) => {
-            createAthlete.mutate(value)
+            if (!value.teamId) {
+                toast.error("Debe seleccionar un equipo")
+                return
+            }
+            createAthlete.mutate(value as any)
         },
     })
 
@@ -91,7 +98,7 @@ export function CreateAthleteDialog() {
                 <DialogHeader>
                     <DialogTitle>Registrar Nuevo Atleta</DialogTitle>
                     <DialogDescription>
-                        Ingrese los datos del atleta para sumarlo a su equipo.
+                        Ingrese los datos del atleta y seleccione el equipo al que pertenecerá.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -105,6 +112,36 @@ export function CreateAthleteDialog() {
                 >
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                         <FieldGroup>
+                            <form.Field
+                                name="teamId"
+                                children={(field) => {
+                                    const isInvalid = field.state.meta.isTouched && !field.state.value;
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldContent>
+                                                <FieldLabel htmlFor={field.name}>Equipo *</FieldLabel>
+                                            </FieldContent>
+                                            <Select
+                                                value={field.state.value}
+                                                onValueChange={(val) => field.handleChange(val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccione equipo" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {teams.map((team) => (
+                                                        <SelectItem key={team.id} value={team.id}>
+                                                            {team.user.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isInvalid && <p className="text-xs text-destructive mt-1">Debe seleccionar un equipo</p>}
+                                        </Field>
+                                    )
+                                }}
+                            />
+
                             <form.Field
                                 name="fullName"
                                 children={(field) => {

@@ -51,7 +51,7 @@ export function DashboardStats() {
             value: stats.totalAthletes,
             description: "Atletas registrados",
             icon: UserCheck,
-            link: "/admin/dashboard/teams",
+            link: "/admin/dashboard/athletes",
             color: "text-purple-600",
             bgColor: "bg-purple-100 dark:bg-purple-900/20",
         },

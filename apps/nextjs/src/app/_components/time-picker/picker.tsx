@@ -8,10 +8,12 @@ import { cn } from "@acme/ui"
 import { Button } from "@acme/ui/button"
 import { Calendar } from "@acme/ui/calendar"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@acme/ui/popover"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@acme/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -29,6 +31,7 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, setDate, label, disabled = false }: DatePickerProps) {
+  const [open, setOpen] = React.useState(false)
   const [month, setMonth] = React.useState<number>(date ? date.getMonth() : new Date().getMonth())
   const [year, setYear] = React.useState<number>(date ? date.getFullYear() : new Date().getFullYear())
 
@@ -76,9 +79,13 @@ export function DatePicker({ date, setDate, label, disabled = false }: DatePicke
     }
   }
 
+  const handleDateSelect = (newDate: Date | undefined) => {
+    setDate(newDate)
+  }
+
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button
           variant={"outline"}
           className={cn(
@@ -88,60 +95,64 @@ export function DatePicker({ date, setDate, label, disabled = false }: DatePicke
           disabled={disabled}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP", { locale: es }) : <span>{label ?? 'Selecciona una fecha'}</span>}
+          {date ? format(date, "PPP HH:mm", { locale: es }) : <span>{label ?? 'Selecciona una fecha'}</span>}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="flex justify-between p-2 space-x-1">
-          <Select onValueChange={handleYearChange} value={year.toString()}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((y) => (
-                <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select onValueChange={handleMonthChange} value={month.toString()}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((m, index) => (
-                <SelectItem key={index} value={index.toString()}>
-                  {format(m, "MMMM", { locale: es })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          month={new Date(year, month)}
-          onMonthChange={(newMonth) => {
-            setMonth(newMonth.getMonth())
-            setYear(newMonth.getFullYear())
-          }}
-          initialFocus
-        />
-        {/* <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          initialFocus
-        /> */}
-        <div className="p-3 border-t h-full border-border">
-          <TimePickerDemo
-            date={date}
-            setDate={setDate}
+      </DialogTrigger>
+      <DialogContent className="w-auto max-w-fit p-0">
+        <DialogHeader className="p-4 pb-0">
+          <DialogTitle>Seleccionar fecha y hora</DialogTitle>
+        </DialogHeader>
+        <div className="p-4 pt-2">
+          <div className="flex justify-between mb-3 space-x-1">
+            <Select onValueChange={handleYearChange} value={year.toString()}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Año" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select onValueChange={handleMonthChange} value={month.toString()}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Mes" />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((m, index) => (
+                  <SelectItem key={index} value={index.toString()}>
+                    {format(m, "MMMM", { locale: es })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={handleDateSelect}
+            month={new Date(year, month)}
+            onMonthChange={(newMonth) => {
+              setMonth(newMonth.getMonth())
+              setYear(newMonth.getFullYear())
+            }}
+            initialFocus
           />
+          <div className="pt-3 border-t mt-3 border-border">
+            <TimePickerDemo
+              date={date}
+              setDate={setDate}
+            />
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setOpen(false)} size="sm">
+              Aceptar
+            </Button>
+          </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   )
 }

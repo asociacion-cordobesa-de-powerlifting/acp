@@ -50,7 +50,7 @@ import { UpdateRegistrationStatusDialog } from "./update-registration-status-dia
 import { BulkUpdateStatusDialog } from "./bulk-update-status-dialog"
 import { toast } from "@acme/ui/toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@acme/ui/dialog"
-import { Loader2, FileText } from "lucide-react"
+import { Loader2, FileText, Download } from "lucide-react"
 
 // Helper type for Registration with relations
 type Registration = RouterOutputs["registrations"]["all"][number]
@@ -147,6 +147,36 @@ export function RegistrationsDataTable() {
             params.delete("eventId")
         }
         router.push(`/admin/dashboard/registrations?${params.toString()}`)
+    }
+
+    // Excel export
+    const [isExporting, setIsExporting] = useState(false)
+    const handleExportExcel = async () => {
+        if (!selectedEventId) {
+            toast.error("Seleccione un evento para exportar")
+            return
+        }
+        setIsExporting(true)
+        try {
+            const response = await fetch(`/api/export/registrations?eventId=${selectedEventId}`)
+            if (!response.ok) {
+                throw new Error('Error al exportar')
+            }
+            const blob = await response.blob()
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = response.headers.get('Content-Disposition')?.split('filename="')[1]?.replace('"', '') || 'inscripciones.xlsx'
+            document.body.appendChild(a)
+            a.click()
+            window.URL.revokeObjectURL(url)
+            a.remove()
+            toast.success("Excel exportado exitosamente")
+        } catch (error) {
+            toast.error("Error al exportar Excel")
+        } finally {
+            setIsExporting(false)
+        }
     }
 
     const columns: ColumnDef<Registration>[] = [
@@ -406,6 +436,21 @@ export function RegistrationsDataTable() {
                             ))}
                         </SelectContent>
                     </Select>
+                    {selectedEventId && (
+                        <Button
+                            variant="outline"
+                            onClick={handleExportExcel}
+                            disabled={isExporting}
+                            className="gap-2"
+                        >
+                            {isExporting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Download className="h-4 w-4" />
+                            )}
+                            Exportar Excel
+                        </Button>
+                    )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {/* Tournament Filter */}

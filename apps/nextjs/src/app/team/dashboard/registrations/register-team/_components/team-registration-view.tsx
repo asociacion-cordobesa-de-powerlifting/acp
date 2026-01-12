@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Calendar, CheckCircle2, Search } from "lucide-react"
+import { Calendar, Search } from "lucide-react"
 import { useTRPC } from "~/trpc/react"
 import { EventNominationManager } from "../../../tournaments/_components/event-nomination-manager"
 import {
@@ -13,13 +13,25 @@ import {
     SelectValue,
 } from "@acme/ui/select"
 import { Card, CardContent } from "@acme/ui/card"
-import { Badge } from "@acme/ui/badge"
 import { dayjs } from "@acme/shared/libs"
+import { useSearchParams } from "next/navigation"
 
 export function TeamRegistrationView() {
     const trpc = useTRPC()
+    const searchParams = useSearchParams()
     const { data: events = [], isLoading } = useQuery(trpc.tournaments.allEvents.queryOptions())
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+
+    // Pre-select event from URL param
+    useEffect(() => {
+        const eventIdParam = searchParams.get("eventId")
+        if (eventIdParam && events.length > 0) {
+            const eventExists = events.find(e => e.id === eventIdParam)
+            if (eventExists) {
+                setSelectedEventId(eventIdParam)
+            }
+        }
+    }, [searchParams, events])
 
     const selectedEvent = events.find(e => e.id === selectedEventId)
 
@@ -73,10 +85,8 @@ export function TeamRegistrationView() {
 
             {selectedEvent ? (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    {/* evento seleccionado: {selectedEvent.name} */}
                     <EventNominationManager
                         event={selectedEvent}
-                        // className="bg-card rounded-xl border p-6 shadow-md"
                     />
                 </div>
             ) : (
@@ -95,3 +105,4 @@ export function TeamRegistrationView() {
         </div>
     )
 }
+
