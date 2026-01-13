@@ -6,7 +6,7 @@ export async function GET() {
         // Create template data with headers and example row
         const templateData = [
             {
-                'Nombre Completo': 'Juan Pérez',
+                'Nombre Completo': 'Dennis Gonzalez',
                 'DNI': '12345678',
                 'Año de Nacimiento': 1995,
                 'Género (M/F)': 'M',

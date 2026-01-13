@@ -78,7 +78,7 @@ export function CreateCoachDialog() {
                                 id="fullName"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
-                                placeholder="Juan Pérez"
+                                placeholder="Dennis Gonzalez"
                             />
                         </div>
                         <div className="grid gap-2">

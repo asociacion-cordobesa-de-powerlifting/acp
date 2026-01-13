@@ -137,7 +137,7 @@ export function AdminEditAthleteDialog({ athlete, open, onOpenChange }: AdminEdi
                                                 value={field.state.value}
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
-                                                placeholder="Ej: Maxi Zeballos"
+                                                placeholder="Ej: Dennis Gonzalez"
                                                 aria-invalid={isInvalid}
                                             />
                                             {isInvalid && <FieldError errors={field.state.meta.errors} />}

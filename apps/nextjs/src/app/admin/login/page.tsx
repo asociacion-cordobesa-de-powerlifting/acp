@@ -1,10 +1,45 @@
 'use client';
 
-import { LogIn } from 'lucide-react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { LogIn, Loader2 } from 'lucide-react';
 
 import LoginForm from '~/app/_components/auth/login-form';
+import { authClient } from '~/auth/client';
 
 export default function AdminLoginPage() {
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
+
+  useEffect(() => {
+    if (session?.user) {
+      // Redirect based on user role
+      if (session.user.role === 'admin') {
+        router.replace('/admin/dashboard');
+      } else {
+        router.replace('/team/dashboard');
+      }
+    }
+  }, [session, router]);
+
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-accent-secondary">
+        <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+      </div>
+    );
+  }
+
+  // If user is logged in, don't render the login form (will redirect)
+  if (session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-accent-secondary">
+        <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-accent-secondary p-4">
       <div className="w-full max-w-sm">
