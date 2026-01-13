@@ -75,9 +75,11 @@ export function TeamSidebar({
 }) {
     const router = useRouter()
     const signOut = async () => {
+        console.log("Signing out...")
         await authClient.signOut({
             fetchOptions: {
                 onSuccess: () => {
+                    window.location.href = "/team/login";
                     router.push("/team/login");
                 },
             },

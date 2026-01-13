@@ -81,9 +81,11 @@ export function AppSidebar({
 }) {
     const router = useRouter()
     const signOut = async () => {
+        console.log("Signing out...")
         await authClient.signOut({
             fetchOptions: {
                 onSuccess: () => {
+                    window.location.href = "/admin/login";
                     router.push("/admin/login");
                 },
             },
