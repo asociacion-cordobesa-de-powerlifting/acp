@@ -38,7 +38,7 @@ export function initAuth<
       //   redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
       // },
     },
-    trustedOrigins: ["expo://"],
+    trustedOrigins: ["expo://", "http://localhost:3000", "https://cordobapowerlifting.com.ar", process.env.BASE_URL as string],
     onAPIError: {
       onError(error, ctx) {
         console.error("BETTER AUTH API ERROR", error, ctx);
