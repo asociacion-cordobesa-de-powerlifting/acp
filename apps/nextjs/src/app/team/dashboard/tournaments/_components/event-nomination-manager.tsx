@@ -1091,8 +1091,9 @@ export function EventNominationManager({
             )}
 
             {/* Search and Filters */}
-            <div className="flex flex-wrap items-center gap-4 bg-muted/30 p-4 rounded-lg border border-muted-foreground/10">
-                <div className="relative flex-1 min-w-[200px]">
+            <div className="flex flex-col gap-3 bg-muted/30 p-4 rounded-lg border border-muted-foreground/10">
+                {/* Search input - always full width */}
+                <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Buscar atleta por nombre..."
@@ -1102,13 +1103,19 @@ export function EventNominationManager({
                     />
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
+                {/* Filter dropdowns - responsive grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:flex lg:flex-wrap lg:items-center gap-2">
+                    <div className="col-span-2 sm:col-span-4 lg:hidden flex items-center gap-2 mb-1">
+                        <Filter className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground font-medium">Filtros</span>
+                    </div>
+                    <Filter className="hidden lg:block h-4 w-4 text-muted-foreground" />
+
                     <Select
                         value={(table.getColumn("gender")?.getFilterValue() as string) || "all"}
                         onValueChange={(val) => table.getColumn("gender")?.setFilterValue(val === "all" ? undefined : val)}
                     >
-                        <SelectTrigger className="h-9 w-[120px] text-xs">
+                        <SelectTrigger className="h-9 w-full lg:w-[120px] text-xs">
                             <SelectValue placeholder="Género" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1122,7 +1129,7 @@ export function EventNominationManager({
                         value={(table.getColumn("athleteDivision")?.getFilterValue() as string) || "all"}
                         onValueChange={(val) => table.getColumn("athleteDivision")?.setFilterValue(val === "all" ? undefined : val)}
                     >
-                        <SelectTrigger className="h-9 w-[130px] text-xs">
+                        <SelectTrigger className="h-9 w-full lg:w-[130px] text-xs">
                             <SelectValue placeholder="División Atleta" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1137,7 +1144,7 @@ export function EventNominationManager({
                         value={(table.getColumn("modality")?.getFilterValue() as string) || "all"}
                         onValueChange={(val) => table.getColumn("modality")?.setFilterValue(val === "all" ? undefined : val)}
                     >
-                        <SelectTrigger className="h-9 w-[140px] text-xs">
+                        <SelectTrigger className="h-9 w-full lg:w-[140px] text-xs">
                             <SelectValue placeholder="Modalidad" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1152,7 +1159,7 @@ export function EventNominationManager({
                         value={(table.getColumn("equipment")?.getFilterValue() as string) || "all"}
                         onValueChange={(val) => table.getColumn("equipment")?.setFilterValue(val === "all" ? undefined : val)}
                     >
-                        <SelectTrigger className="h-9 w-[130px] text-xs">
+                        <SelectTrigger className="h-9 w-full lg:w-[130px] text-xs">
                             <SelectValue placeholder="Equipo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1163,7 +1170,7 @@ export function EventNominationManager({
                         </SelectContent>
                     </Select>
 
-                    <div className="flex items-center gap-2 ml-2 pl-2 border-l border-muted-foreground/20">
+                    <div className="col-span-2 sm:col-span-4 lg:col-span-1 flex items-center gap-2 pt-2 lg:pt-0 lg:ml-2 lg:pl-2 lg:border-l border-t lg:border-t-0 border-muted-foreground/20">
                         <Switch
                             checked={hideRegistered}
                             onCheckedChange={setHideRegistered}

@@ -3,6 +3,7 @@ import { TableSkeleton } from "~/app/_components/skeletons";
 import { HydrateClient, prefetch, trpc } from "~/trpc/server";
 import { AthletesTable } from "./_components/athletes-table";
 import { CreateAthleteDialog } from "./_components/create-athlete-dialog";
+import { ImportAthletesDialog } from "./_components/import-athletes-dialog";
 import { Suspense } from "react";
 
 export default function AthletesPage() {
@@ -12,7 +13,12 @@ export default function AthletesPage() {
             <DashboardPageLayout
                 title="Atletas"
                 description="Gestión de atletas"
-                actions={<CreateAthleteDialog />}
+                actions={
+                    <div className="flex gap-2">
+                        <ImportAthletesDialog />
+                        <CreateAthleteDialog />
+                    </div>
+                }
             >
                 <Suspense fallback={<TableSkeleton />}>
                     <AthletesTable />
@@ -21,3 +27,4 @@ export default function AthletesPage() {
         </HydrateClient>
     );
 }
+

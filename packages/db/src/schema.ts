@@ -149,7 +149,7 @@ export const athlete = pgTable("athlete", (t) => ({
     .notNull()
     .references(() => teamData.id, { onDelete: "cascade" }),
   fullName: t.text().notNull(),
-  dni: t.text().notNull(),
+  dni: t.text().notNull().unique(),
   birthYear: t.integer().notNull(),
   gender: genderEnum("gender").notNull(),
   goodliftRef: t.text(),

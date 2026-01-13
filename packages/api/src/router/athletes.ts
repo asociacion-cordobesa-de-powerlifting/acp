@@ -67,8 +67,23 @@ export const athletesRouter = {
                 });
             }
 
-            // 2. Create athlete
-            // Using raw input directly + teamId
+            // 2. Check if athlete with same DNI already exists in this team
+            const existingAthlete = await ctx.db.query.athlete.findFirst({
+                where: and(
+                    eq(athlete.teamId, team.id),
+                    eq(athlete.dni, input.dni),
+                    isNull(athlete.deletedAt)
+                )
+            });
+
+            if (existingAthlete) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: `Ya existe un atleta con DNI ${input.dni} en tu equipo.`,
+                });
+            }
+
+            // 3. Create athlete
             return ctx.db.insert(athlete).values({
                 ...input,
                 teamId: team.id,
@@ -105,6 +120,24 @@ export const athletesRouter = {
                     code: "NOT_FOUND",
                     message: "Atleta no encontrado.",
                 });
+            }
+
+            // Check if DNI is being changed and already exists
+            if (data.dni && data.dni !== existing.dni) {
+                const dniExists = await ctx.db.query.athlete.findFirst({
+                    where: and(
+                        eq(athlete.teamId, team.id),
+                        eq(athlete.dni, data.dni),
+                        isNull(athlete.deletedAt)
+                    )
+                });
+
+                if (dniExists) {
+                    throw new TRPCError({
+                        code: "CONFLICT",
+                        message: `Ya existe un atleta con DNI ${data.dni} en tu equipo.`,
+                    });
+                }
             }
 
             await ctx.db.update(athlete).set(data).where(eq(athlete.id, id));
@@ -179,6 +212,22 @@ export const athletesRouter = {
                 });
             }
 
+            // Check if athlete with same DNI already exists in this team
+            const existingAthlete = await ctx.db.query.athlete.findFirst({
+                where: and(
+                    eq(athlete.teamId, teamId),
+                    eq(athlete.dni, data.dni),
+                    isNull(athlete.deletedAt)
+                )
+            });
+
+            if (existingAthlete) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: `Ya existe un atleta con DNI ${data.dni} en este equipo.`,
+                });
+            }
+
             return ctx.db.insert(athlete).values({
                 ...data,
                 teamId,
@@ -203,6 +252,27 @@ export const athletesRouter = {
                     code: "NOT_FOUND",
                     message: "Atleta no encontrado.",
                 });
+            }
+
+            // Determine the target team (new team if changing, or current team)
+            const targetTeamId = teamId || existing.teamId;
+
+            // Check if DNI is being changed and already exists in target team
+            if (data.dni && (data.dni !== existing.dni || (teamId && teamId !== existing.teamId))) {
+                const dniExists = await ctx.db.query.athlete.findFirst({
+                    where: and(
+                        eq(athlete.teamId, targetTeamId),
+                        eq(athlete.dni, data.dni),
+                        isNull(athlete.deletedAt)
+                    )
+                });
+
+                if (dniExists && dniExists.id !== id) {
+                    throw new TRPCError({
+                        code: "CONFLICT",
+                        message: `Ya existe un atleta con DNI ${data.dni} en el equipo destino.`,
+                    });
+                }
             }
 
             // If changing team, verify new team exists
