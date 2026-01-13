@@ -44,6 +44,7 @@ import {
     type ColumnFiltersState,
 } from "@tanstack/react-table"
 import { Input } from "@acme/ui/input"
+import { EventCoachSelector } from "./event-coach-selector"
 
 type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
 
@@ -1089,6 +1090,9 @@ export function EventNominationManager({
                     </p>
                 </div>
             )}
+
+            {/* Coaches Selection */}
+            <EventCoachSelector event={event} className="mb-4" />
 
             {/* Search and Filters */}
             <div className="flex flex-col gap-3 bg-muted/30 p-4 rounded-lg border border-muted-foreground/10">

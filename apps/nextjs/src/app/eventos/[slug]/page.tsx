@@ -7,7 +7,7 @@ import {
     MapPinIcon,
     UsersIcon,
 } from '@acme/ui/icons';
-import { Download } from 'lucide-react';
+import { Download, Scale } from 'lucide-react';
 import {
     getLabelFromValue,
 } from '@acme/shared';
@@ -16,6 +16,7 @@ import {
     MODALITIES,
     EQUIPMENT,
     TOURNAMENT_STATUS,
+    REFEREE_CATEGORY,
 } from '@acme/shared/constants';
 import Link from 'next/link';
 import { ModalitiesTicker } from './_components/modalities-ticker';
@@ -80,6 +81,16 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     }
 
     const { event, registrations } = data;
+
+    // Fetch referees for this event
+    let referees: { id: string; refereeId: string; fullName: string; category: string }[] = [];
+    try {
+        referees = await queryClient.fetchQuery(
+            trpc.referees.byEvent.queryOptions({ eventId: event.id })
+        );
+    } catch {
+        // Silently fail if referees can't be fetched
+    }
 
     const statusColors: Record<string, string> = {
         preliminary_open: 'bg-green-500',
@@ -179,6 +190,39 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                     />
                 </div>
             </section>
+
+            {/* Referees Section */}
+            {referees.length > 0 && (
+                <section className="py-6 px-4 sm:px-6 lg:px-8 border-b border-border">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Scale className="h-5 w-5 text-muted-foreground" />
+                            <h2 className="text-lg font-semibold text-foreground">Referees</h2>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            {referees.map((ref) => {
+                                const categoryInfo = REFEREE_CATEGORY.find(c => c.value === ref.category);
+                                const categoryColorMap: Record<string, string> = {
+                                    national: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                    int_cat_1: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+                                    int_cat_2: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+                                };
+                                return (
+                                    <div
+                                        key={ref.id}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
+                                    >
+                                        <span className="text-sm font-medium">{ref.fullName}</span>
+                                        <Badge className={categoryColorMap[ref.category] || ''} variant="secondary">
+                                            {categoryInfo?.label || ref.category}
+                                        </Badge>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {/* Registrations Section */}
             <section className="py-12 px-4 sm:px-6 lg:px-8">

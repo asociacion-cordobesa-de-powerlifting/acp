@@ -90,3 +90,14 @@ export const REGISTRATION_STATUS: Selection<RegistrationStatusEnum>[] = [
     { label: "Aprobado", value: "approved" },
     { label: "Rechazado", value: "rejected" },
 ]
+
+export const REFEREE_CATEGORY = [
+    { value: "national", label: "Nacional" },
+    { value: "int_cat_1", label: "Internacional Cat. 1" },
+    { value: "int_cat_2", label: "Internacional Cat. 2" },
+] as const;
+
+export const COACH_ROLE = [
+    { value: "head_coach", label: "Coach Principal" },
+    { value: "assistant_coach", label: "Coach Asistente" },
+] as const;

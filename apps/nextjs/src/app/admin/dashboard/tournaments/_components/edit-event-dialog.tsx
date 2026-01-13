@@ -41,6 +41,7 @@ import { RouterOutputs } from "@acme/api"
 import { TOURNAMENT_STATUS } from "@acme/shared/constants"
 import { dayjs } from "@acme/shared/libs"
 import * as z from "zod/v4"
+import { EventRefereeSelector } from "./event-referee-selector"
 
 type EventWithTournaments = RouterOutputs["tournaments"]["allEvents"][number]
 
@@ -268,6 +269,9 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
                                 )}
                             />
                         </div>
+
+                        {/* Referees Assignment */}
+                        <EventRefereeSelector eventId={event.id} />
 
                         <div className="pt-4 border-t">
                             <div className="flex items-center justify-between mb-4">

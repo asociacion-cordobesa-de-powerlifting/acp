@@ -61,6 +61,11 @@ const items: NavItem[] = [
         url: "/team/dashboard/registrations",
         icon: ClipboardList,
     },
+    {
+        title: "Coaches",
+        url: "/team/dashboard/coaches",
+        icon: User2,
+    },
 ]
 
 export function TeamSidebar({

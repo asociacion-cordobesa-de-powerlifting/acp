@@ -63,6 +63,11 @@ const items: NavItem[] = [
         icon: UserCheck,
     },
     {
+        title: "Referees",
+        url: "/admin/dashboard/referees",
+        icon: User2,
+    },
+    {
         title: "Inscripciones",
         url: "/admin/dashboard/registrations",
         icon: ClipboardList,

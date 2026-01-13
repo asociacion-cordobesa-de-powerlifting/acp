@@ -86,6 +86,7 @@ export const teamData = pgTable("team_data", (t) => ({
 export const teamDataRelations = relations(teamData, ({ one, many }) => ({
   athletes: many(athlete),
   registrations: many(registrations),
+  coaches: many(coach),
   user: one(user, {
     fields: [teamData.userId],
     references: [user.id],
@@ -97,7 +98,7 @@ export const event = pgTable("event", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
   shortId: t.varchar("short_id").notNull().unique(),
   name: t.text().notNull(), // Ej: "Campeonato Nacional 2026"
-  slug: t.text().notNull().unique(),
+  slug: t.text().notNull(), // Unique constraint handled by partial index below
   venue: t.text().notNull(),
   location: t.text().notNull(),
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
@@ -109,10 +110,20 @@ export const event = pgTable("event", (t) => ({
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => new Date()),
   deletedAt: t.timestamp(),
-}));
+}), (table) => [
+  // Partial unique index: slug must be unique only for active (non-deleted) events
+  {
+    name: "event_slug_active_unique",
+    columns: [table.slug],
+    unique: true,
+    where: sql`${table.deletedAt} IS NULL`,
+  },
+]);
 
 export const eventRelations = relations(event, ({ many }) => ({
   tournaments: many(tournament),
+  coachRegistrations: many(coachEventRegistration),
+  referees: many(eventReferee),
 }));
 
 // Torneos
@@ -120,7 +131,7 @@ export const tournament = pgTable("tournament", (t) => ({
   id: t.uuid().primaryKey().defaultRandom(),
   eventId: t.uuid("event_id").notNull().references(() => event.id, { onDelete: "cascade" }),
   shortId: t.varchar("short_id").notNull().unique(),
-  slug: t.text().notNull().unique(),
+  slug: t.text().notNull(), // Unique constraint handled by partial index below
 
   // Atributos específicos de la modalidad
   division: tournamentDivisionEnum("division").notNull().default("open"),
@@ -131,7 +142,15 @@ export const tournament = pgTable("tournament", (t) => ({
   createdAt: t.timestamp().defaultNow().notNull(),
   updatedAt: t.timestamp().notNull().$onUpdate(() => new Date()),
   deletedAt: t.timestamp(),
-}));
+}), (table) => [
+  // Partial unique index: slug must be unique only for active (non-deleted) tournaments
+  {
+    name: "tournament_slug_active_unique",
+    columns: [table.slug],
+    unique: true,
+    where: sql`${table.deletedAt} IS NULL`,
+  },
+]);
 
 export const tournamentRelations = relations(tournament, ({ one, many }) => ({
   event: one(event, {
@@ -215,6 +234,95 @@ export const registrationRelations = relations(registrations, ({ one, many }) =>
 }));
 
 
+/* ========== COACHES & REFEREES ========== */
+
+export const refereeCategoryEnum = pgEnum("referee_category", [
+  "national",
+  "int_cat_1",
+  "int_cat_2"
+]);
+
+export const coachRoleEnum = pgEnum("coach_role", [
+  "head_coach",
+  "assistant_coach"
+]);
+
+// Coaches (pertenecen a un equipo)
+export const coach = pgTable("coach", (t) => ({
+  id: t.uuid().primaryKey().defaultRandom(),
+  teamId: t.uuid("team_id").notNull().references(() => teamData.id, { onDelete: "cascade" }),
+  fullName: t.text("full_name").notNull(),
+  dni: t.text().notNull(),
+  createdAt: t.timestamp("created_at").defaultNow().notNull(),
+  updatedAt: t.timestamp("updated_at").notNull().$onUpdate(() => new Date()),
+  deletedAt: t.timestamp("deleted_at"),
+}));
+
+export const coachRelations = relations(coach, ({ one, many }) => ({
+  team: one(teamData, {
+    fields: [coach.teamId],
+    references: [teamData.id],
+  }),
+  eventRegistrations: many(coachEventRegistration),
+}));
+
+// Registro de coaches a eventos
+export const coachEventRegistration = pgTable("coach_event_registration", (t) => ({
+  id: t.uuid().primaryKey().defaultRandom(),
+  coachId: t.uuid("coach_id").notNull().references(() => coach.id, { onDelete: "cascade" }),
+  eventId: t.uuid("event_id").notNull().references(() => event.id, { onDelete: "cascade" }),
+  role: coachRoleEnum("role").notNull().default("head_coach"),
+  createdAt: t.timestamp("created_at").defaultNow().notNull(),
+  deletedAt: t.timestamp("deleted_at"),
+}));
+
+export const coachEventRegistrationRelations = relations(coachEventRegistration, ({ one }) => ({
+  coach: one(coach, {
+    fields: [coachEventRegistration.coachId],
+    references: [coach.id],
+  }),
+  event: one(event, {
+    fields: [coachEventRegistration.eventId],
+    references: [event.id],
+  }),
+}));
+
+// Referees (pool global)
+export const referee = pgTable("referee", (t) => ({
+  id: t.uuid().primaryKey().defaultRandom(),
+  fullName: t.text("full_name").notNull(),
+  dni: t.text().notNull().unique(),
+  category: refereeCategoryEnum("category").notNull(),
+  createdAt: t.timestamp("created_at").defaultNow().notNull(),
+  updatedAt: t.timestamp("updated_at").notNull().$onUpdate(() => new Date()),
+  deletedAt: t.timestamp("deleted_at"),
+}));
+
+export const refereeRelations = relations(referee, ({ many }) => ({
+  eventAssignments: many(eventReferee),
+}));
+
+// Asignación de referees a eventos
+export const eventReferee = pgTable("event_referee", (t) => ({
+  id: t.uuid().primaryKey().defaultRandom(),
+  refereeId: t.uuid("referee_id").notNull().references(() => referee.id, { onDelete: "cascade" }),
+  eventId: t.uuid("event_id").notNull().references(() => event.id, { onDelete: "cascade" }),
+  createdAt: t.timestamp("created_at").defaultNow().notNull(),
+  deletedAt: t.timestamp("deleted_at"),
+}));
+
+export const eventRefereeRelations = relations(eventReferee, ({ one }) => ({
+  referee: one(referee, {
+    fields: [eventReferee.refereeId],
+    references: [referee.id],
+  }),
+  event: one(event, {
+    fields: [eventReferee.eventId],
+    references: [event.id],
+  }),
+}));
+
+
 export * from "./auth-schema";
 
 export type TournamentStatusEnum = typeof tournamentStatusEnum.enumValues[number]
@@ -225,3 +333,5 @@ export type ModalityEnum = typeof modalityEnum.enumValues[number]
 export type EquipmentEnum = typeof equipmentEnum.enumValues[number]
 export type GenderEnum = typeof genderEnum.enumValues[number]
 export type RegistrationStatusEnum = typeof registrationStatusEnum.enumValues[number]
+export type RefereeCategoryEnum = typeof refereeCategoryEnum.enumValues[number]
+export type CoachRoleEnum = typeof coachRoleEnum.enumValues[number]

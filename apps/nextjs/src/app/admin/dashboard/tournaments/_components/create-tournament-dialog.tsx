@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Loader2, Plus } from "lucide-react"
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
+import { Loader2, Plus, Scale, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@acme/ui/button"
@@ -25,13 +25,20 @@ import {
 } from "@acme/ui/field"
 import { Input } from "@acme/ui/input"
 import { Textarea } from "@acme/ui/textarea"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@acme/ui/select"
 import { toast } from "@acme/ui/toast"
 import { useTRPC } from "~/trpc/react"
 import { eventValidator } from "@acme/shared/validators"
 import { DatePicker } from "~/app/_components/time-picker/picker"
 import * as z from "zod/v4"
 import { dayjs } from "@acme/shared/libs"
-import { EQUIPMENT, MODALITIES, TOURNAMENT_DIVISION } from "@acme/shared/constants"
+import { EQUIPMENT, MODALITIES, TOURNAMENT_DIVISION, REFEREE_CATEGORY } from "@acme/shared/constants"
 
 import { ModalitySelector, type ModalityInstance } from "./modality-selector"
 import { Badge } from "@acme/ui/badge"
@@ -44,6 +51,7 @@ export function CreateTournamentDialog() {
     const [step, setStep] = useState<'event' | 'modalities' | 'confirmation'>('event')
     const [eventData, setEventData] = useState<z.input<typeof eventValidator> | null>(null)
     const [instances, setInstances] = useState<ModalityInstance[]>([])
+    const [selectedRefereeIds, setSelectedRefereeIds] = useState<string[]>([])
 
     const router = useRouter()
     const trpc = useTRPC();
@@ -51,7 +59,18 @@ export function CreateTournamentDialog() {
 
     const createTransaction = useMutation(
         trpc.tournaments.createEventWithTournaments.mutationOptions({
-            onSuccess: async () => {
+            onSuccess: async (newEvent) => {
+                // Assign referees if any were selected
+                if (selectedRefereeIds.length > 0 && newEvent?.id) {
+                    try {
+                        await syncReferees.mutateAsync({
+                            eventId: newEvent.id,
+                            refereeIds: selectedRefereeIds
+                        })
+                    } catch (err) {
+                        console.error('Error assigning referees:', err)
+                    }
+                }
                 toast.success("Evento y modalidades creados exitosamente")
                 setOpen(false)
                 resetAll()
@@ -64,10 +83,16 @@ export function CreateTournamentDialog() {
         })
     )
 
+    const syncReferees = useMutation(trpc.referees.syncEventReferees.mutationOptions())
+
+    // Fetch all referees for selection
+    const { data: allReferees = [] } = useQuery(trpc.referees.list.queryOptions())
+
     const resetAll = () => {
         setStep('event')
         setEventData(null)
         setInstances([])
+        setSelectedRefereeIds([])
         form.reset()
     }
 
@@ -331,6 +356,74 @@ export function CreateTournamentDialog() {
                                 </div>
                             </div>
 
+                            {/* Referee Selection */}
+                            <div className="space-y-3 pt-4 border-t">
+                                <div className="flex items-center gap-2">
+                                    <Scale className="h-4 w-4 text-muted-foreground" />
+                                    <Label className="text-sm font-medium">Referees (opcional)</Label>
+                                    {selectedRefereeIds.length > 0 && (
+                                        <Badge variant="secondary" className="text-xs">
+                                            {selectedRefereeIds.length}
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                {allReferees.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        No hay referees registrados.{" "}
+                                        <a href="/admin/dashboard/referees" className="text-primary underline">Agregar referees</a>
+                                    </p>
+                                ) : (
+                                    <>
+                                        {selectedRefereeIds.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedRefereeIds.map(refId => {
+                                                    const referee = allReferees.find(r => r.id === refId)
+                                                    if (!referee) return null
+                                                    const categoryInfo = REFEREE_CATEGORY.find(c => c.value === referee.category)
+                                                    return (
+                                                        <Badge key={refId} variant="outline" className="flex items-center gap-1 pr-1">
+                                                            {referee.fullName}
+                                                            <span className="text-xs text-muted-foreground">({categoryInfo?.label})</span>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-4 w-4 ml-1 hover:bg-destructive/20"
+                                                                onClick={() => setSelectedRefereeIds(prev => prev.filter(id => id !== refId))}
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </Button>
+                                                        </Badge>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                        <Select onValueChange={(id) => {
+                                            if (!selectedRefereeIds.includes(id)) {
+                                                setSelectedRefereeIds(prev => [...prev, id])
+                                            }
+                                        }}>
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="Agregar referee..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {allReferees
+                                                    .filter(r => !selectedRefereeIds.includes(r.id))
+                                                    .map(referee => {
+                                                        const categoryInfo = REFEREE_CATEGORY.find(c => c.value === referee.category)
+                                                        return (
+                                                            <SelectItem key={referee.id} value={referee.id} className="text-xs">
+                                                                {referee.fullName} ({categoryInfo?.label})
+                                                            </SelectItem>
+                                                        )
+                                                    })}
+                                            </SelectContent>
+                                        </Select>
+                                    </>
+                                )}
+                            </div>
+
                             <div className="space-y-3">
                                 <Label className="text-base font-semibold">Instancias a crear ({instances.length})</Label>
                                 <ScrollArea className="h-[250px] rounded-md border bg-background">
@@ -351,6 +444,8 @@ export function CreateTournamentDialog() {
                             <div className="flex items-center gap-2 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
                                 <p className="font-medium">¿Estás seguro? Se crearán {instances.length} torneos asociados a este evento.</p>
                             </div>
+
+                    
                         </div>
                     )}
                 </div>
