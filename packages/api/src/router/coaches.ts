@@ -1,7 +1,7 @@
 import { TRPCRouterRecord, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { protectedProcedure } from "../trpc";
+import { protectedProcedure, publicProcedure, adminProcedure } from "../trpc";
 import { coach, coachEventRegistration, teamData, event } from "@acme/db/schema";
 import { eq, desc, and, isNull } from "@acme/db";
 
@@ -381,6 +381,63 @@ export const coachesRouter = {
                     }
                 }
             }
+        }),
+
+    // Get all coaches registered to an event (public - for event page and admin)
+    publicByEvent: publicProcedure
+        .input(z.object({ eventId: z.string().uuid() }))
+        .query(async ({ ctx, input }) => {
+            const registrations = await ctx.db.query.coachEventRegistration.findMany({
+                where: and(
+                    eq(coachEventRegistration.eventId, input.eventId),
+                    isNull(coachEventRegistration.deletedAt)
+                ),
+                with: {
+                    coach: {
+                        with: {
+                            team: true
+                        }
+                    }
+                }
+            });
+
+            // Filter to only include non-deleted coaches and return formatted data
+            return registrations
+                .filter(r => !r.coach.deletedAt)
+                .map(r => ({
+                    id: r.id,
+                    coachId: r.coach.id,
+                    fullName: r.coach.fullName,
+                    dni: r.coach.dni,
+                    role: r.role,
+                    teamId: r.coach.teamId,
+                    teamSlug: r.coach.team?.slug || 'unknown',
+                }));
+        }),
+
+    // Admin remove a coach from an event
+    adminRemoveFromEvent: adminProcedure
+        .input(z.object({
+            registrationId: z.string().uuid()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const registration = await ctx.db.query.coachEventRegistration.findFirst({
+                where: and(
+                    eq(coachEventRegistration.id, input.registrationId),
+                    isNull(coachEventRegistration.deletedAt)
+                )
+            });
+
+            if (!registration) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Registro no encontrado.",
+                });
+            }
+
+            await ctx.db.update(coachEventRegistration)
+                .set({ deletedAt: new Date() })
+                .where(eq(coachEventRegistration.id, input.registrationId));
         }),
 
 } satisfies TRPCRouterRecord;

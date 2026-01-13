@@ -7,7 +7,7 @@ import {
     MapPinIcon,
     UsersIcon,
 } from '@acme/ui/icons';
-import { Download, Scale } from 'lucide-react';
+import { Download, Scale, Users2 } from 'lucide-react';
 import {
     getLabelFromValue,
 } from '@acme/shared';
@@ -17,6 +17,7 @@ import {
     EQUIPMENT,
     TOURNAMENT_STATUS,
     REFEREE_CATEGORY,
+    COACH_ROLE,
 } from '@acme/shared/constants';
 import Link from 'next/link';
 import { ModalitiesTicker } from './_components/modalities-ticker';
@@ -90,6 +91,16 @@ export default async function EventPage({ params, searchParams }: EventPageProps
         );
     } catch {
         // Silently fail if referees can't be fetched
+    }
+
+    // Fetch coaches for this event
+    let coaches: { id: string; coachId: string; fullName: string; role: string; teamSlug: string }[] = [];
+    try {
+        coaches = await queryClient.fetchQuery(
+            trpc.coaches.publicByEvent.queryOptions({ eventId: event.id })
+        );
+    } catch {
+        // Silently fail if coaches can't be fetched
     }
 
     const statusColors: Record<string, string> = {
@@ -191,39 +202,6 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                 </div>
             </section>
 
-            {/* Referees Section */}
-            {referees.length > 0 && (
-                <section className="py-6 px-4 sm:px-6 lg:px-8 border-b border-border">
-                    <div className="max-w-6xl mx-auto">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Scale className="h-5 w-5 text-muted-foreground" />
-                            <h2 className="text-lg font-semibold text-foreground">Referees</h2>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                            {referees.map((ref) => {
-                                const categoryInfo = REFEREE_CATEGORY.find(c => c.value === ref.category);
-                                const categoryColorMap: Record<string, string> = {
-                                    national: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-                                    int_cat_1: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-                                    int_cat_2: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
-                                };
-                                return (
-                                    <div
-                                        key={ref.id}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
-                                    >
-                                        <span className="text-sm font-medium">{ref.fullName}</span>
-                                        <Badge className={categoryColorMap[ref.category] || ''} variant="secondary">
-                                            {categoryInfo?.label || ref.category}
-                                        </Badge>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </section>
-            )}
-
             {/* Registrations Section */}
             <section className="py-12 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-6xl mx-auto">
@@ -249,6 +227,89 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                     )}
                 </div>
             </section>
+
+            {/* Coaches Section */}
+            {coaches.length > 0 && (
+                <section className="py-8 px-4 sm:px-6 lg:px-8 border-t border-border">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Users2 className="h-5 w-5 text-muted-foreground" />
+                            <h2 className="text-lg font-semibold text-foreground">Coaches</h2>
+                            <Badge variant="secondary" className="text-xs">{coaches.length}</Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Nombre</th>
+                                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Rol</th>
+                                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Equipo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {coaches.map((coach) => {
+                                        const roleInfo = COACH_ROLE.find(r => r.value === coach.role);
+                                        return (
+                                            <tr key={coach.id} className="border-b last:border-0">
+                                                <td className="py-2 px-3 font-medium">{coach.fullName}</td>
+                                                <td className="py-2 px-3">
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {roleInfo?.label || coach.role}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-2 px-3 text-muted-foreground">{coach.teamSlug}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* Referees Section */}
+            {referees.length > 0 && (
+                <section className="py-8 px-4 sm:px-6 lg:px-8 border-t border-border">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Scale className="h-5 w-5 text-muted-foreground" />
+                            <h2 className="text-lg font-semibold text-foreground">Referees</h2>
+                            <Badge variant="secondary" className="text-xs">{referees.length}</Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Nombre</th>
+                                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Categoría</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {referees.map((ref) => {
+                                        const categoryInfo = REFEREE_CATEGORY.find(c => c.value === ref.category);
+                                        const categoryColorMap: Record<string, string> = {
+                                            national: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                            int_cat_1: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+                                            int_cat_2: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+                                        };
+                                        return (
+                                            <tr key={ref.id} className="border-b last:border-0">
+                                                <td className="py-2 px-3 font-medium">{ref.fullName}</td>
+                                                <td className="py-2 px-3">
+                                                    <Badge className={categoryColorMap[ref.category] || ''} variant="secondary">
+                                                        {categoryInfo?.label || ref.category}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             <Footer />
         </div>

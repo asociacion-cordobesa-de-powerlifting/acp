@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -61,20 +61,34 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
     const trpc = useTRPC();
     const queryClient = useQueryClient();
     const [shouldPropagate, setShouldPropagate] = useState(false)
+    const [selectedRefereeIds, setSelectedRefereeIds] = useState<string[]>([])
+
+    // Fetch current referees for this event
+    const { data: eventReferees = [] } = useQuery(
+        trpc.referees.byEvent.queryOptions({ eventId: event.id })
+    )
 
     const updateEvent = useMutation(
         trpc.tournaments.updateEvent.mutationOptions({
             onSuccess: async () => {
+                // Sync referees after event update
+                await syncReferees.mutateAsync({
+                    eventId: event.id,
+                    refereeIds: selectedRefereeIds
+                })
                 toast.success("Evento actualizado exitosamente")
                 onOpenChange(false)
                 router.refresh()
                 await queryClient.invalidateQueries(trpc.tournaments.allEvents.pathFilter())
+                await queryClient.invalidateQueries(trpc.referees.byEvent.pathFilter())
             },
             onError: (err) => {
                 toast.error(err.message)
             },
         })
     )
+
+    const syncReferees = useMutation(trpc.referees.syncEventReferees.mutationOptions())
 
     const defaultValues: z.input<typeof EditEventDialogSchema> = {
         id: event.id,
@@ -106,8 +120,10 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
         if (open) {
             form.reset(defaultValues)
             setShouldPropagate(false)
+            // Initialize referees from fetched data
+            setSelectedRefereeIds(eventReferees.map(er => er.refereeId))
         }
-    }, [event, open])
+    }, [event, open, eventReferees])
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -271,7 +287,11 @@ export function EditEventDialog({ event, open, onOpenChange }: EditEventDialogPr
                         </div>
 
                         {/* Referees Assignment */}
-                        <EventRefereeSelector eventId={event.id} />
+                        <EventRefereeSelector
+                            eventId={event.id}
+                            value={selectedRefereeIds}
+                            onChange={setSelectedRefereeIds}
+                        />
 
                         <div className="pt-4 border-t">
                             <div className="flex items-center justify-between mb-4">

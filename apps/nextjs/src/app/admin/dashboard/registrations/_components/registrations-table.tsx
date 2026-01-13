@@ -48,6 +48,7 @@ import {
 import { useSearchParams, useRouter } from "next/navigation"
 import { UpdateRegistrationStatusDialog } from "./update-registration-status-dialog"
 import { BulkUpdateStatusDialog } from "./bulk-update-status-dialog"
+import { EventCoachesTable } from "./event-coaches-table"
 import { toast } from "@acme/ui/toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@acme/ui/dialog"
 import { Loader2, FileText, Download } from "lucide-react"
@@ -565,6 +566,9 @@ export function RegistrationsDataTable() {
                     selectedIds={selectedIds}
                     eventId={selectedEventId}
                 />
+            )}
+            {selectedEventId && (
+                <EventCoachesTable eventId={selectedEventId} />
             )}
         </div>
     )
