@@ -69,8 +69,16 @@ export default function TeamLoginPage() {
           }}
         />
 
+        {/* Back to Home Link */}
+        <a
+          href="/"
+          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-6"
+        >
+          ← Volver al inicio
+        </a>
+
         {/* Footer Text */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-4">
           Plataforma oficial de ACP • Todos los derechos reservados
         </p>
       </div>
