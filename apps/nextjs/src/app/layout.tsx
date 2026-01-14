@@ -128,6 +128,9 @@ const robotoMono = Roboto_Mono({
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-title" content="ACP - Asociación Cordobesa de Powerlifting" />
+      </head>
       <body
         className={cn(
           "bg-background text-foreground min-h-screen font-sans antialiased",
