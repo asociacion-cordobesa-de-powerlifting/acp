@@ -21,7 +21,7 @@ export default function HeroVideo({
     subtitle = 'Gestión centralizada de torneos de powerlifting para equipos y atletas de Córdoba',
 }: HeroVideoProps) {
     return (
-        <section className="relative h-[80vh] w-full overflow-hidden">
+        <section className="relative h-[85vh] w-full overflow-hidden">
             {/* Video Background */}
             <div className="absolute inset-0 z-0">
                 <video
@@ -52,8 +52,8 @@ export default function HeroVideo({
             <div className="relative z-10 flex h-full items-center justify-center px-4 sm:px-6 lg:px-8">
                 <div className="max-w-4xl text-center">
                     {/* Logo/Badge */}
-                    <div className="mb-6 inline-flex items-center justify-center">
-                        <span className="rounded-full bg-primary/20 px-4 py-2 text-sm font-medium text-primary backdrop-blur-sm border border-primary/30">
+                    <div className="my-4 inline-flex items-center justify-center">
+                        <span className="rounded-full bg-primary/20 px-6 py-2 text-sm font-medium text-primary backdrop-blur-sm border border-primary/30">
                             🏋️ Asociación Oficial
                         </span>
                     </div>
