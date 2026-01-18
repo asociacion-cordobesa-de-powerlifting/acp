@@ -116,7 +116,14 @@ export const refereesRouter = {
                 }
             });
 
-            // Filter to only include non-deleted referees
+            // Category order: int_cat_1 (1), int_cat_2 (2), national (3)
+            const categoryOrder: Record<string, number> = {
+                int_cat_1: 1,
+                int_cat_2: 2,
+                national: 3,
+            };
+
+            // Filter to only include non-deleted referees and sort by category
             return assignments
                 .filter(a => !a.referee.deletedAt)
                 .map(a => ({
@@ -124,7 +131,8 @@ export const refereesRouter = {
                     refereeId: a.referee.id,
                     fullName: a.referee.fullName,
                     category: a.referee.category,
-                }));
+                }))
+                .sort((a, b) => (categoryOrder[a.category] ?? 99) - (categoryOrder[b.category] ?? 99));
         }),
 
     // Assign a referee to an event (admin only)

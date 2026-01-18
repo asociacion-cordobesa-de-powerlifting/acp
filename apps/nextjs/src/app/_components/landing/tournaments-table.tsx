@@ -21,6 +21,10 @@ import {
     TableHeader,
     TableRow,
 } from '@acme/ui/table';
+import {
+    Collapsible,
+    CollapsibleContent,
+} from '@acme/ui/collapsible';
 import { Badge } from '@acme/ui/badge';
 import { Button } from '@acme/ui/button';
 import { Input } from '@acme/ui/input';
@@ -28,7 +32,7 @@ import {
     ClockIcon,
     MapPinIcon,
 } from '@acme/ui/icons';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import {
     getLabelFromValue,
 } from '@acme/shared';
@@ -43,20 +47,26 @@ import { DataTablePagination } from '~/app/_components/table/pagination';
 
 interface Tournament {
     id: string;
-    eventName: string;
-    eventSlug: string;
-    venue: string;
-    location: string;
-    startDate: Date;
-    endDate: Date;
     division: string;
     modality: string;
     equipment: string;
     status: string;
+    slug: string;
+}
+
+interface Event {
+    id: string;
+    name: string;
+    slug: string;
+    venue: string;
+    location: string;
+    startDate: Date;
+    endDate: Date;
+    tournaments: Tournament[];
 }
 
 interface TournamentsTableProps {
-    tournaments: Tournament[];
+    events: Event[];
 }
 
 function formatDate(date: Date): string {
@@ -73,43 +83,98 @@ const statusColors: Record<string, string> = {
     finished: 'bg-muted-foreground',
 };
 
-export function TournamentsTable({ tournaments }: TournamentsTableProps) {
+function EventRow({
+    row,
+    columns
+}: {
+    row: any,
+    columns: ColumnDef<Event>[]
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const event = row.original as Event;
+    const hasTournaments = event.tournaments && event.tournaments.length > 0;
+
+    return (
+        <Collapsible
+            asChild
+            open={isOpen}
+            onOpenChange={setIsOpen}
+        >
+            <TableBody className="[&_tr:last-child]:border-b">
+                <TableRow
+                    data-state={row.getIsSelected() && "selected"}
+                    className={hasTournaments ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={() => hasTournaments && setIsOpen(!isOpen)}
+                >
+                    {row.getVisibleCells().map((cell: any) => (
+                        <TableCell key={cell.id}>
+                            {cell.column.id === 'name' && hasTournaments && (
+                                <ChevronDown className={`mr-2 h-4 w-4 inline transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                    ))}
+                </TableRow>
+                {hasTournaments && (
+                    <CollapsibleContent asChild>
+                        <TableRow className="bg-muted/30">
+                            <TableCell colSpan={columns.length} className="p-0 border-b-0">
+                                <div className="px-12 py-2 space-y-1">
+                                    {event.tournaments.map((t) => {
+                                        const modalityLabel = getLabelFromValue(t.modality, MODALITIES);
+                                        const equipmentLabel = getLabelFromValue(t.equipment, EQUIPMENT);
+                                        const divisionLabel = getLabelFromValue(t.division, TOURNAMENT_DIVISION);
+                                        const statusLabel = TOURNAMENT_STATUS.find(s => s.value === t.status)?.label ?? t.status;
+                                        const fullName = `${event.name} - ${divisionLabel} · ${modalityLabel} · ${equipmentLabel}`;
+
+                                        return (
+                                            <div
+                                                key={t.id}
+                                                className="flex items-center justify-between py-1.5 border-b border-dashed last:border-0"
+                                            >
+                                                <Link
+                                                    href={`/eventos/${event.slug}?division=${t.division}&modality=${t.modality}&equipment=${t.equipment}`}
+                                                    className="text-sm font-medium text-primary hover:underline"
+                                                >
+                                                    {fullName}
+                                                </Link>
+                                                <Badge
+                                                    className={`${statusColors[t.status] ?? 'bg-muted'} text-white text-xs`}
+                                                >
+                                                    {statusLabel}
+                                                </Badge>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    </CollapsibleContent>
+                )}
+            </TableBody>
+        </Collapsible>
+    );
+}
+
+export function TournamentsTable({ events }: TournamentsTableProps) {
     const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [globalFilter, setGlobalFilter] = useState('');
 
-    const columns: ColumnDef<Tournament>[] = [
+    const columns: ColumnDef<Event>[] = [
         {
-            accessorKey: 'eventName',
+            accessorKey: 'name',
             header: ({ column }) => (
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
                 >
-                    Torneo
+                    Evento
                     <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
             ),
-            cell: ({ row }) => {
-                const t = row.original;
-                const divisionLabel = getLabelFromValue(t.division, TOURNAMENT_DIVISION);
-                const modalityLabel = getLabelFromValue(t.modality, MODALITIES);
-                const equipmentLabel = getLabelFromValue(t.equipment, EQUIPMENT);
-
-                return (
-                    <div>
-                        <Link
-                            href={`/eventos/${t.eventSlug}?division=${t.division}&modality=${t.modality}&equipment=${t.equipment}`}
-                            className="font-medium text-primary hover:underline"
-                        >
-                            {t.eventName}
-                        <div className="text-sm">
-                            {divisionLabel} · {modalityLabel} · {equipmentLabel}
-                        </div>
-                        </Link>
-                    </div>
-                );
-            },
+            cell: ({ row }) => (
+                <span className="font-semibold">{row.original.name}</span>
+            ),
         },
         {
             id: 'location',
@@ -134,74 +199,32 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
             ),
         },
         {
-            accessorKey: 'division',
-            header: 'División',
-            cell: ({ row }) => getLabelFromValue(row.original.division, TOURNAMENT_DIVISION),
-            filterFn: (row, id, value) => value.includes(row.getValue(id)),
-        },
-        {
-            accessorKey: 'modality',
-            header: 'Modalidad',
-            cell: ({ row }) => getLabelFromValue(row.original.modality, MODALITIES),
-            filterFn: (row, id, value) => value.includes(row.getValue(id)),
-        },
-        {
-            accessorKey: 'equipment',
-            header: 'Equipamiento',
-            cell: ({ row }) => getLabelFromValue(row.original.equipment, EQUIPMENT),
-            filterFn: (row, id, value) => value.includes(row.getValue(id)),
-        },
-        {
-            accessorKey: 'status',
-            header: 'Estado',
-            cell: ({ row }) => {
-                const status = row.original.status;
-                const statusInfo = TOURNAMENT_STATUS.find(s => s.value === status);
-                return (
-                    <Badge className={`${statusColors[status] ?? 'bg-muted'} text-white`}>
-                        {statusInfo?.label ?? status}
-                    </Badge>
-                );
-            },
-            filterFn: (row, id, value) => value.includes(row.getValue(id)),
-        },
-        {
-            id: 'actions',
-            header: '',
+            id: 'tournaments',
+            header: 'Modalidades',
             cell: ({ row }) => (
-                <Link href={`/eventos/${row.original.eventSlug}?division=${row.original.division}&modality=${row.original.modality}&equipment=${row.original.equipment}`}>
-                    <Button variant="outline" size="sm">
-                        Ver evento
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                    </Button>
-                </Link>
+                <Badge variant="outline" className="text-xs">
+                    {row.original.tournaments.length} {row.original.tournaments.length === 1 ? 'modalidad' : 'modalidades'}
+                </Badge>
             ),
         },
     ];
 
     const table = useReactTable({
-        data: tournaments,
+        data: events,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
         onGlobalFilterChange: setGlobalFilter,
         state: {
             sorting,
-            columnFilters,
             globalFilter,
         },
         initialState: {
             pagination: {
                 pageSize: 10,
-            },
-            columnVisibility: {
-                division: false,
-                modality: false,
-                equipment: false,
             },
         },
     });
@@ -210,39 +233,11 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
                 <Input
-                    placeholder="Buscar torneos..."
+                    placeholder="Buscar eventos..."
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                     className="max-w-sm"
                 />
-                {table.getColumn('division') && (
-                    <DataTableFacetedFilter
-                        column={table.getColumn('division')}
-                        title="División"
-                        options={TOURNAMENT_DIVISION}
-                    />
-                )}
-                {table.getColumn('modality') && (
-                    <DataTableFacetedFilter
-                        column={table.getColumn('modality')}
-                        title="Modalidad"
-                        options={MODALITIES}
-                    />
-                )}
-                {table.getColumn('equipment') && (
-                    <DataTableFacetedFilter
-                        column={table.getColumn('equipment')}
-                        title="Equipamiento"
-                        options={EQUIPMENT}
-                    />
-                )}
-                {table.getColumn('status') && (
-                    <DataTableFacetedFilter
-                        column={table.getColumn('status')}
-                        title="Estado"
-                        options={TOURNAMENT_STATUS}
-                    />
-                )}
             </div>
 
             <div className="rounded-lg border bg-card overflow-hidden">
@@ -263,25 +258,23 @@ export function TournamentsTable({ tournaments }: TournamentsTableProps) {
                             </TableRow>
                         ))}
                     </TableHeader>
-                    <TableBody>
-                        {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id}>
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        ) : (
+                    {table.getRowModel().rows.length ? (
+                        table.getRowModel().rows.map((row) => (
+                            <EventRow
+                                key={row.id}
+                                row={row}
+                                columns={columns}
+                            />
+                        ))
+                    ) : (
+                        <TableBody>
                             <TableRow>
                                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No se encontraron torneos.
+                                    No se encontraron eventos.
                                 </TableCell>
                             </TableRow>
-                        )}
-                    </TableBody>
+                        </TableBody>
+                    )}
                 </Table>
             </div>
 
