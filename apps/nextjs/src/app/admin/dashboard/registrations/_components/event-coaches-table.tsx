@@ -160,11 +160,11 @@ export function EventCoachesTable({ eventId }: EventCoachesTableProps) {
             },
         },
         {
-            accessorKey: 'teamSlug',
-            id: 'teamSlug',
+            accessorKey: 'teamName',
+            id: 'teamName',
             header: 'Equipo',
             filterFn: (row, id, value) => {
-                return value.includes(row.original.teamSlug)
+                return value.includes(row.original.teamName)
             },
         },
         {
@@ -192,8 +192,8 @@ export function EventCoachesTable({ eventId }: EventCoachesTableProps) {
 
     // Extract unique teams for filter
     const uniqueTeams = useMemo(() => {
-        return Array.from(new Set(coaches.map(c => c.teamSlug)))
-            .map(slug => ({ label: slug, value: slug }))
+        return Array.from(new Set(coaches.map(c => c.teamName)))
+            .map(name => ({ label: name, value: name }))
             .sort((a, b) => a.label.localeCompare(b.label))
     }, [coaches])
 
@@ -231,7 +231,7 @@ export function EventCoachesTable({ eventId }: EventCoachesTableProps) {
                     {/* Team Filter */}
                     {uniqueTeams.length > 0 && (
                         <DataTableFacetedFilter
-                            column={table.getColumn("teamSlug")}
+                            column={table.getColumn("teamName")}
                             title="Equipo"
                             options={uniqueTeams}
                         />

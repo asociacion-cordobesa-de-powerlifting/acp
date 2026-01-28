@@ -172,6 +172,7 @@ export const registrationsRouter = {
                 tournamentId: z.string().uuid(), // Base tournament ID (division correspondiente)
                 weightClass: z.enum(weightClassEnum.enumValues),
                 divisionMode: z.enum(["division_only", "open_only", "both"]),
+                modalityMode: z.enum(["full_only", "bench_only", "both_modalities"]),
             }))
         }))
         .mutation(async ({ ctx, input }) => {
@@ -206,28 +207,59 @@ export const registrationsRouter = {
 
                     if (!mainT) continue; // Skip if tournament not found
 
-                    if (nom.divisionMode === "open_only") {
-                        // Only register in Open division
-                        const openT = eventWithTournaments.find(t =>
-                            t.division === 'open' &&
-                            t.modality === mainT.modality &&
-                            t.equipment === mainT.equipment
-                        );
-                        if (openT) tournamentsToSync.push(openT.id);
-                    } else if (nom.divisionMode === "both") {
-                        // Register in both divisions
-                        tournamentsToSync.push(nom.tournamentId);
-                        if (mainT.division !== 'open') {
-                            const openT = eventWithTournaments.find(t =>
-                                t.division === 'open' &&
-                                t.modality === mainT.modality &&
-                                t.equipment === mainT.equipment
-                            );
-                            if (openT) tournamentsToSync.push(openT.id);
-                        }
+                    // Determine which modalities to register
+                    const modalitiesToRegister: string[] = [];
+                    if (nom.modalityMode === "full_only") {
+                        modalitiesToRegister.push("full");
+                    } else if (nom.modalityMode === "bench_only") {
+                        modalitiesToRegister.push("bench");
                     } else {
-                        // division_only: only register in the main division
-                        tournamentsToSync.push(nom.tournamentId);
+                        // both_modalities
+                        modalitiesToRegister.push("full", "bench");
+                    }
+
+                    // Determine which divisions to register
+                    const divisionsToRegister: { useOpen: boolean }[] = [];
+                    if (nom.divisionMode === "division_only") {
+                        divisionsToRegister.push({ useOpen: false });
+                    } else if (nom.divisionMode === "open_only") {
+                        divisionsToRegister.push({ useOpen: true });
+                    } else {
+                        // both
+                        divisionsToRegister.push({ useOpen: false }, { useOpen: true });
+                    }
+
+                    // Generate all tournament combinations
+                    for (const modality of modalitiesToRegister) {
+                        for (const divConfig of divisionsToRegister) {
+                            let targetTournament;
+
+                            if (divConfig.useOpen) {
+                                // Find Open tournament with same modality and equipment
+                                targetTournament = eventWithTournaments.find(t =>
+                                    t.division === 'open' &&
+                                    t.modality === modality &&
+                                    t.equipment === mainT.equipment
+                                );
+                            } else {
+                                // Find non-Open tournament with same modality and equipment
+                                // Use mainT's division if modality matches, otherwise find matching
+                                if (mainT.modality === modality) {
+                                    targetTournament = mainT;
+                                } else {
+                                    targetTournament = eventWithTournaments.find(t =>
+                                        t.division !== 'open' &&
+                                        t.modality === modality &&
+                                        t.equipment === mainT.equipment &&
+                                        t.division === mainT.division
+                                    );
+                                }
+                            }
+
+                            if (targetTournament) {
+                                tournamentsToSync.push(targetTournament.id);
+                            }
+                        }
                     }
 
                     for (const tid of tournamentsToSync) {
@@ -274,6 +306,7 @@ export const registrationsRouter = {
                 tournamentId: z.string().uuid(), // Base tournament ID (division correspondiente)
                 weightClass: z.enum(weightClassEnum.enumValues),
                 divisionMode: z.enum(["division_only", "open_only", "both"]),
+                modalityMode: z.enum(["full_only", "bench_only", "both_modalities"]),
             }))
         }))
         .mutation(async ({ ctx, input }) => {
@@ -315,28 +348,59 @@ export const registrationsRouter = {
 
                     if (!mainT) continue; // Skip if tournament not found
 
-                    if (nom.divisionMode === "open_only") {
-                        // Only register in Open division
-                        const openT = eventWithTournaments.find(t =>
-                            t.division === 'open' &&
-                            t.modality === mainT.modality &&
-                            t.equipment === mainT.equipment
-                        );
-                        if (openT) tournamentsToSync.push(openT.id);
-                    } else if (nom.divisionMode === "both") {
-                        // Register in both divisions
-                        tournamentsToSync.push(nom.tournamentId);
-                        if (mainT.division !== 'open') {
-                            const openT = eventWithTournaments.find(t =>
-                                t.division === 'open' &&
-                                t.modality === mainT.modality &&
-                                t.equipment === mainT.equipment
-                            );
-                            if (openT) tournamentsToSync.push(openT.id);
-                        }
+                    // Determine which modalities to register
+                    const modalitiesToRegister: string[] = [];
+                    if (nom.modalityMode === "full_only") {
+                        modalitiesToRegister.push("full");
+                    } else if (nom.modalityMode === "bench_only") {
+                        modalitiesToRegister.push("bench");
                     } else {
-                        // division_only: only register in the main division
-                        tournamentsToSync.push(nom.tournamentId);
+                        // both_modalities
+                        modalitiesToRegister.push("full", "bench");
+                    }
+
+                    // Determine which divisions to register
+                    const divisionsToRegister: { useOpen: boolean }[] = [];
+                    if (nom.divisionMode === "division_only") {
+                        divisionsToRegister.push({ useOpen: false });
+                    } else if (nom.divisionMode === "open_only") {
+                        divisionsToRegister.push({ useOpen: true });
+                    } else {
+                        // both
+                        divisionsToRegister.push({ useOpen: false }, { useOpen: true });
+                    }
+
+                    // Generate all tournament combinations
+                    for (const modality of modalitiesToRegister) {
+                        for (const divConfig of divisionsToRegister) {
+                            let targetTournament;
+
+                            if (divConfig.useOpen) {
+                                // Find Open tournament with same modality and equipment
+                                targetTournament = eventWithTournaments.find(t =>
+                                    t.division === 'open' &&
+                                    t.modality === modality &&
+                                    t.equipment === mainT.equipment
+                                );
+                            } else {
+                                // Find non-Open tournament with same modality and equipment
+                                // Use mainT's division if modality matches, otherwise find matching
+                                if (mainT.modality === modality) {
+                                    targetTournament = mainT;
+                                } else {
+                                    targetTournament = eventWithTournaments.find(t =>
+                                        t.division !== 'open' &&
+                                        t.modality === modality &&
+                                        t.equipment === mainT.equipment &&
+                                        t.division === mainT.division
+                                    );
+                                }
+                            }
+
+                            if (targetTournament) {
+                                tournamentsToSync.push(targetTournament.id);
+                            }
+                        }
                     }
 
                     for (const tid of tournamentsToSync) {

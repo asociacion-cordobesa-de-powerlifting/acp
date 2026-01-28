@@ -395,7 +395,16 @@ export const coachesRouter = {
                 with: {
                     coach: {
                         with: {
-                            team: true
+                            team: {
+                                with: {
+                                    user: {
+                                        columns: {
+                                            id: true,
+                                            name: true
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -412,6 +421,7 @@ export const coachesRouter = {
                     role: r.role,
                     teamId: r.coach.teamId,
                     teamSlug: r.coach.team?.slug || 'unknown',
+                    teamName: r.coach.team?.user?.name || r.coach.team?.slug || 'Sin equipo',
                 }));
         }),
 

@@ -62,6 +62,7 @@ type NominationEntry = {
     equipment: "classic" | "equipped"
     weightClass: string
     divisionMode: "division_only" | "open_only" | "both"
+    modalityMode: "full_only" | "bench_only" | "both_modalities"
     isApproved: boolean
     isRejected: boolean
     isExisting: boolean
@@ -329,6 +330,19 @@ export function EventNominationManager({
                 const allRejected = existing.length > 0 && existing.every(r => r.status === 'rejected')
                 const anyApproved = existing.some(r => r.status === 'approved')
 
+                // Determine modality mode based on existing registrations
+                const fullRegs = existing.filter(r => r.tournament.modality === 'full')
+                const benchRegs = existing.filter(r => r.tournament.modality === 'bench')
+                let modalityMode: "full_only" | "bench_only" | "both_modalities" = "full_only"
+
+                if (fullRegs.length > 0 && benchRegs.length > 0) {
+                    modalityMode = "both_modalities"
+                } else if (benchRegs.length > 0) {
+                    modalityMode = "bench_only"
+                } else {
+                    modalityMode = "full_only"
+                }
+
                 initial[a.id] = {
                     athleteId: a.id,
                     tournamentId: baseTournamentId,
@@ -336,6 +350,7 @@ export function EventNominationManager({
                     equipment: mainReg.tournament.equipment as any,
                     weightClass: mainReg.weightClass ?? "",
                     divisionMode,
+                    modalityMode,
                     isApproved: anyApproved,
                     isRejected: allRejected,
                     isExisting: true,
@@ -370,6 +385,7 @@ export function EventNominationManager({
                     prevEntry.isRejected !== newEntry.isRejected ||
                     prevEntry.divisionStatus !== newEntry.divisionStatus ||
                     prevEntry.openStatus !== newEntry.openStatus ||
+                    prevEntry.modalityMode !== newEntry.modalityMode ||
                     prevEntry.isExisting !== newEntry.isExisting
                 )
             }) || newKeys.some(key => !prev[key])
@@ -445,6 +461,7 @@ export function EventNominationManager({
                     equipment: matched.equipment,
                     weightClass: eligibleWeights[0] ?? "",
                     divisionMode: "division_only",
+                    modalityMode: matched.modality === "full" ? "full_only" : "bench_only",
                     isApproved: false,
                     isRejected: false,
                     isExisting: false,
@@ -555,7 +572,8 @@ export function EventNominationManager({
             athleteId: n.athleteId,
             tournamentId: n.tournamentId,
             weightClass: n.weightClass as any,
-            divisionMode: n.divisionMode
+            divisionMode: n.divisionMode,
+            modalityMode: n.modalityMode
         }))
 
         syncRegistrations.mutate({
@@ -714,7 +732,7 @@ export function EventNominationManager({
             },
             filterFn: "includesString"
         }),
-        columnHelper.accessor(row => row.entry?.modality || "full", {
+        columnHelper.accessor(row => row.entry?.modalityMode || "full_only", {
             id: "modality",
             header: "Modalidad",
             cell: ({ row }) => {
@@ -722,34 +740,53 @@ export function EventNominationManager({
                 if (!a.entry) return null
 
                 const availableModalities = getAvailableModalities(a.plainAthlete, a.plainTournaments)
-                const currentModality = a.entry.modality
+                const currentModalityMode = a.entry.modalityMode
 
-                // If current modality is not available, don't show the select (shouldn't happen but safety check)
-                if (!availableModalities.includes(currentModality)) return null
+                // Check if both modalities are available for this athlete/equipment combination
+                const hasFullOption = availableModalities.includes("full")
+                const hasBenchOption = availableModalities.includes("bench")
+                const hasBothModalities = hasFullOption && hasBenchOption
 
-                // If only one option, show plain text
-                if (availableModalities.length === 1) {
-                    const label = MODALITIES.find(m => m.value === currentModality)?.label ?? currentModality
-                    return <span className="text-xs text-muted-foreground">{label}</span>
+                // Build options based on what's available
+                const options: Array<{ value: "full_only" | "bench_only" | "both_modalities", label: string }> = []
+
+                if (hasFullOption) {
+                    options.push({ value: "full_only", label: "Full Powerlifting" })
+                }
+                if (hasBenchOption) {
+                    options.push({ value: "bench_only", label: "Bench Press" })
+                }
+                if (hasBothModalities) {
+                    options.push({ value: "both_modalities", label: "Ambas" })
+                }
+
+                if (options.length === 0) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
+                if (options.length === 1) {
+                    // Only one option, show as text
+                    const singleOption = options[0]
+                    if (!singleOption) return <span className="text-[9px] text-muted-foreground flex justify-center">-</span>
+                    return <span className="text-xs text-muted-foreground text-center">{singleOption.label}</span>
                 }
 
                 return (
-                    <Select
-                        disabled={a.entry.isApproved}
-                        value={currentModality}
-                        onValueChange={(val) => updateNomination(a.id, { modality: val as any })}
-                    >
-                        <SelectTrigger className="h-8 py-0 text-xs font-medium">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {MODALITIES.filter(m => availableModalities.includes(m.value as "full" | "bench")).map(m => (
-                                <SelectItem key={m.value} value={m.value} className="text-xs">
-                                    {m.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col gap-0.5">
+                        <Select
+                            disabled={a.entry.isApproved}
+                            value={currentModalityMode}
+                            onValueChange={(val) => updateNomination(a.id, { modalityMode: val as "full_only" | "bench_only" | "both_modalities" })}
+                        >
+                            <SelectTrigger className="h-8 py-0 text-xs font-medium w-[120px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {options.map(opt => (
+                                    <SelectItem key={`${a.id}-modality-${opt.value}`} value={opt.value} className="text-xs">
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 )
             },
         }),
@@ -856,7 +893,8 @@ export function EventNominationManager({
                         options.push({ value: "open_only", label: "Open" })
                         options.push({ value: "both", label: "Ambas" })
                     }
-                } else if (hasOpenOption) {
+                } else {
+                    // Matched tournament IS open, so always show Open option
                     options.push({ value: "open_only", label: "Open" })
                 }
 
@@ -886,11 +924,27 @@ export function EventNominationManager({
                                 ))}
                             </SelectContent>
                         </Select>
-                        {a.entry.divisionMode === "both" && (
-                            <span className="text-[9px] text-muted-foreground mt-2">
-                                Doble inscripción
-                            </span>
-                        )}
+                        {(() => {
+                            // Calculate total inscriptions based on divisionMode × modalityMode
+                            const divisionCount = a.entry.divisionMode === "both" ? 2 : 1
+                            const modalityCount = a.entry.modalityMode === "both_modalities" ? 2 : 1
+                            const totalInscriptions = divisionCount * modalityCount
+
+                            if (totalInscriptions === 2) {
+                                return (
+                                    <span className="text-[9px] text-muted-foreground mt-1">
+                                        Doble inscripción
+                                    </span>
+                                )
+                            } else if (totalInscriptions === 4) {
+                                return (
+                                    <span className="text-[9px] text-primary font-medium mt-1">
+                                        Cuádruple inscripción
+                                    </span>
+                                )
+                            }
+                            return null
+                        })()}
                     </div>
                 )
             }

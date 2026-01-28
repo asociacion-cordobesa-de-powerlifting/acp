@@ -94,7 +94,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     }
 
     // Fetch coaches for this event
-    let coaches: { id: string; coachId: string; fullName: string; role: string; teamSlug: string }[] = [];
+    let coaches: { id: string; coachId: string; fullName: string; role: string; teamSlug: string; teamName: string }[] = [];
     try {
         coaches = await queryClient.fetchQuery(
             trpc.coaches.publicByEvent.queryOptions({ eventId: event.id })
@@ -257,7 +257,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                                                         {roleInfo?.label || coach.role}
                                                     </Badge>
                                                 </td>
-                                                <td className="py-2 px-3 text-muted-foreground">{coach.teamSlug}</td>
+                                                <td className="py-2 px-3 text-muted-foreground">{coach.teamName}</td>
                                             </tr>
                                         );
                                     })}
