@@ -73,7 +73,7 @@ export function UpdateRegistrationStatusDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
-                    <Select value={status} onValueChange={setStatus}>
+                    <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
                         <SelectTrigger>
                             <SelectValue placeholder="Seleccionar estado" />
                         </SelectTrigger>
@@ -104,4 +104,5 @@ export function UpdateRegistrationStatusDialog({
         </Dialog>
     )
 }
+
 

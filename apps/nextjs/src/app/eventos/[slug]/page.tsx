@@ -103,6 +103,29 @@ export default async function EventPage({ params, searchParams }: EventPageProps
         // Silently fail if coaches can't be fetched
     }
 
+    // Sort coaches for display:
+    // 1) By team name
+    // 2) By role (using COACH_ROLE order)
+    // 3) Alphabetically by coach name
+    const sortedCoaches = [...coaches].sort((a, b) => {
+        // 1) Team name
+        if (a.teamName !== b.teamName) {
+            return a.teamName.localeCompare(b.teamName, "es", { sensitivity: "base" });
+        }
+
+        // 2) Role order (keep same visual order as COACH_ROLE)
+        const roleIndexA = COACH_ROLE.findIndex(r => r.value === a.role);
+        const roleIndexB = COACH_ROLE.findIndex(r => r.value === b.role);
+        const safeA = roleIndexA === -1 ? Number.MAX_SAFE_INTEGER : roleIndexA;
+        const safeB = roleIndexB === -1 ? Number.MAX_SAFE_INTEGER : roleIndexB;
+        if (safeA !== safeB) {
+            return safeA - safeB;
+        }
+
+        // 3) Coach name
+        return a.fullName.localeCompare(b.fullName, "es", { sensitivity: "base" });
+    });
+
     const statusColors: Record<string, string> = {
         preliminary_open: 'bg-green-500',
         preliminary_closed: 'bg-amber-500',
@@ -248,7 +271,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {coaches.map((coach) => {
+                                    {sortedCoaches.map((coach) => {
                                         const roleInfo = COACH_ROLE.find(r => r.value === coach.role);
                                         return (
                                             <tr key={coach.id} className="border-b last:border-0">
