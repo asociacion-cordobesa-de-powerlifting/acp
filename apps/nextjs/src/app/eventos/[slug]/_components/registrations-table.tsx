@@ -27,6 +27,8 @@ import {
     EQUIPMENT,
     WEIGHT_CLASSES,
     ATHLETE_GENDER,
+    ATHLETE_DIVISION,
+    DIVISION_RULES,
 } from '@acme/shared/constants';
 
 interface Registration {
@@ -63,12 +65,36 @@ interface Tournament {
 interface RegistrationsTableProps {
     registrations: Registration[];
     availableTournaments: Tournament[];
+    eventYear: number;
+}
+
+// Map tournament divisions to their possible age sub-divisions
+const DIVISION_SUB_GROUPS: Record<string, string[]> = {
+    juniors: ['subjunior', 'junior'],
+    open: ['open'],
+    masters: ['master_1', 'master_2', 'master_3', 'master_4'],
+};
+
+// Determine athlete's age sub-division based on their age
+function getAgeSubDivision(birthYear: number, eventYear: number, tournamentDivision: string): string {
+    const age = eventYear - birthYear;
+    const possibleSubs = DIVISION_SUB_GROUPS[tournamentDivision];
+    if (!possibleSubs || possibleSubs.length <= 1) return tournamentDivision;
+
+    // Find the matching sub-division from DIVISION_RULES
+    for (const rule of DIVISION_RULES) {
+        if (possibleSubs.includes(rule.id) && age >= rule.min && age <= rule.max) {
+            return rule.id;
+        }
+    }
+    // Fallback: return the tournament division itself
+    return tournamentDivision;
 }
 
 // Sort order for weight classes
 const weightClassOrder = WEIGHT_CLASSES.map(wc => wc.value);
 
-export function RegistrationsTable({ registrations, availableTournaments }: RegistrationsTableProps) {
+export function RegistrationsTable({ registrations, availableTournaments, eventYear }: RegistrationsTableProps) {
     // Nuqs state synced with URL
     const [division, setDivision] = useQueryState('division', parseAsString.withDefault(''));
     const [modality, setModality] = useQueryState('modality', parseAsString.withDefault(''));
@@ -103,12 +129,13 @@ export function RegistrationsTable({ registrations, availableTournaments }: Regi
         });
     }, [registrations, division, modality, equipment, gender, search]);
 
-    // Group registrations by division + gender + modality + equipment, then by weight class
+    // Group registrations by ageDivision + gender + modality + equipment, then by weight class
     const groupedData = useMemo(() => {
         const groups: Record<string, Record<string, Registration[]>> = {};
 
         filteredRegistrations.forEach(r => {
-            const groupKey = `${r.tournament.division}-${r.athlete.gender}-${r.tournament.modality}-${r.tournament.equipment}`;
+            const ageSub = getAgeSubDivision(r.athlete.birthYear, eventYear, r.tournament.division);
+            const groupKey = `${ageSub}-${r.athlete.gender}-${r.tournament.modality}-${r.tournament.equipment}`;
             if (!groups[groupKey]) groups[groupKey] = {};
             const weightClasses = groups[groupKey]!;
             if (!weightClasses[r.weightClass]) weightClasses[r.weightClass] = [];
@@ -127,15 +154,29 @@ export function RegistrationsTable({ registrations, availableTournaments }: Regi
         });
 
         return groups;
-    }, [filteredRegistrations]);
+    }, [filteredRegistrations, eventYear]);
+
+    // Define sort order for age sub-divisions
+    const ageDivisionOrder = DIVISION_RULES.map(r => r.id);
+
+    // Sort group keys by age division order
+    const sortedGroupKeys = useMemo(() => {
+        return Object.keys(groupedData).sort((a, b) => {
+            const [aSub] = a.split('-');
+            const [bSub] = b.split('-');
+            const aIdx = ageDivisionOrder.indexOf(aSub as any);
+            const bIdx = ageDivisionOrder.indexOf(bSub as any);
+            return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+        });
+    }, [groupedData]);
 
     const getGroupLabel = (groupKey: string) => {
-        const [div, gen, mod, equip] = groupKey.split('-');
-        const divLabel = getLabelFromValue(div, TOURNAMENT_DIVISION);
+        const [ageSub, gen, mod, equip] = groupKey.split('-');
+        const ageLabel = getLabelFromValue(ageSub, ATHLETE_DIVISION) || getLabelFromValue(ageSub, TOURNAMENT_DIVISION);
         const genLabel = getLabelFromValue(gen, ATHLETE_GENDER);
         const modLabel = getLabelFromValue(mod, MODALITIES);
         const equipLabel = getLabelFromValue(equip, EQUIPMENT);
-        return `${divLabel} ${genLabel} - ${modLabel} - ${equipLabel}`;
+        return `${ageLabel} ${genLabel} - ${modLabel} - ${equipLabel}`;
     };
 
     const formatWeight = (kg: number) => kg > 0 ? `${kg}` : '-';
@@ -167,86 +208,88 @@ export function RegistrationsTable({ registrations, availableTournaments }: Regi
                 </button>
             </div>
 
-            {/* Grouped Tables */}
-            {Object.keys(groupedData).length === 0 ? (
+            {sortedGroupKeys.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground border rounded-lg bg-card">
                     <p>No se encontraron atletas con los filtros seleccionados.</p>
                 </div>
             ) : (
-                Object.entries(groupedData).map(([groupKey, weightClasses]) => (
-                    <div key={groupKey} className="rounded-lg border bg-card overflow-hidden">
-                        {/* Group Header */}
-                        <div className="bg-primary text-primary-foreground px-4 py-3">
-                            <h3 className="font-semibold text-lg">
-                                {getGroupLabel(groupKey)}
-                            </h3>
+                sortedGroupKeys.map((groupKey) => {
+                    const weightClasses = groupedData[groupKey]!;
+                    return (
+                        <div key={groupKey} className="rounded-lg border bg-card overflow-hidden">
+                            {/* Group Header */}
+                            <div className="bg-primary text-primary-foreground px-4 py-3">
+                                <h3 className="font-semibold text-lg">
+                                    {getGroupLabel(groupKey)}
+                                </h3>
+                            </div>
+
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[250px]">Nombre</TableHead>
+                                        <TableHead className="text-center">Año</TableHead>
+                                        <TableHead>Equipo</TableHead>
+                                        <TableHead className="text-right">SQ</TableHead>
+                                        <TableHead className="text-right">BP</TableHead>
+                                        <TableHead className="text-right">DL</TableHead>
+                                        <TableHead className="text-right font-bold">Total</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {Object.entries(weightClasses)
+                                        .sort(([a], [b]) => weightClassOrder.indexOf(a as typeof weightClassOrder[number]) - weightClassOrder.indexOf(b as typeof weightClassOrder[number]))
+                                        .map(([weightClass, athletes]) => (
+                                            <React.Fragment key={`group-${weightClass}`}>
+                                                {/* Weight Class Separator Row - styled as secondary */}
+                                                <TableRow className="bg-secondary hover:bg-secondary">
+                                                    <TableCell colSpan={7} className="py-1.5">
+                                                        <span className="font-bold text-secondary-foreground text-sm">
+                                                            {getLabelFromValue(weightClass, WEIGHT_CLASSES)}
+                                                        </span>
+                                                        <span className="text-secondary-foreground/70 ml-2 text-xs">
+                                                            ({athletes.length})
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+
+                                                {/* Athletes */}
+                                                {athletes.map((r, idx) => {
+                                                    const total = r.athlete.squatBestKg + r.athlete.benchBestKg + r.athlete.deadliftBestKg;
+                                                    return (
+                                                        <TableRow key={r.id}>
+                                                            <TableCell>
+                                                                <span className="text-muted-foreground mr-2">{idx + 1}.</span>
+                                                                <span className="font-medium">{r.athlete.fullName}</span>
+                                                            </TableCell>
+                                                            <TableCell className="text-center text-muted-foreground">
+                                                                {r.athlete.birthYear}
+                                                            </TableCell>
+                                                            <TableCell className="text-muted-foreground">
+                                                                {r.teamName}
+                                                            </TableCell>
+                                                            <TableCell className="text-right tabular-nums">
+                                                                {formatWeight(r.athlete.squatBestKg)}
+                                                            </TableCell>
+                                                            <TableCell className="text-right tabular-nums">
+                                                                {formatWeight(r.athlete.benchBestKg)}
+                                                            </TableCell>
+                                                            <TableCell className="text-right tabular-nums">
+                                                                {formatWeight(r.athlete.deadliftBestKg)}
+                                                            </TableCell>
+                                                            <TableCell className="text-right tabular-nums font-bold">
+                                                                {total > 0 ? total : '-'}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        ))}
+                                </TableBody>
+                            </Table>
                         </div>
-
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[250px]">Nombre</TableHead>
-                                    <TableHead className="text-center">Año</TableHead>
-                                    <TableHead>Equipo</TableHead>
-                                    <TableHead className="text-right">SQ</TableHead>
-                                    <TableHead className="text-right">BP</TableHead>
-                                    <TableHead className="text-right">DL</TableHead>
-                                    <TableHead className="text-right font-bold">Total</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {Object.entries(weightClasses)
-                                    .sort(([a], [b]) => weightClassOrder.indexOf(a as typeof weightClassOrder[number]) - weightClassOrder.indexOf(b as typeof weightClassOrder[number]))
-                                    .map(([weightClass, athletes]) => (
-                                        <React.Fragment key={`group-${weightClass}`}>
-                                            {/* Weight Class Separator Row - styled as secondary */}
-                                            <TableRow className="bg-secondary hover:bg-secondary">
-                                                <TableCell colSpan={7} className="py-1.5">
-                                                    <span className="font-bold text-secondary-foreground text-sm">
-                                                        {getLabelFromValue(weightClass, WEIGHT_CLASSES)}
-                                                    </span>
-                                                    <span className="text-secondary-foreground/70 ml-2 text-xs">
-                                                        ({athletes.length})
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-
-                                            {/* Athletes */}
-                                            {athletes.map((r, idx) => {
-                                                const total = r.athlete.squatBestKg + r.athlete.benchBestKg + r.athlete.deadliftBestKg;
-                                                return (
-                                                    <TableRow key={r.id}>
-                                                        <TableCell>
-                                                            <span className="text-muted-foreground mr-2">{idx + 1}.</span>
-                                                            <span className="font-medium">{r.athlete.fullName}</span>
-                                                        </TableCell>
-                                                        <TableCell className="text-center text-muted-foreground">
-                                                            {r.athlete.birthYear}
-                                                        </TableCell>
-                                                        <TableCell className="text-muted-foreground">
-                                                            {r.teamName}
-                                                        </TableCell>
-                                                        <TableCell className="text-right tabular-nums">
-                                                            {formatWeight(r.athlete.squatBestKg)}
-                                                        </TableCell>
-                                                        <TableCell className="text-right tabular-nums">
-                                                            {formatWeight(r.athlete.benchBestKg)}
-                                                        </TableCell>
-                                                        <TableCell className="text-right tabular-nums">
-                                                            {formatWeight(r.athlete.deadliftBestKg)}
-                                                        </TableCell>
-                                                        <TableCell className="text-right tabular-nums font-bold">
-                                                            {total > 0 ? total : '-'}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                        </React.Fragment>
-                                    ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                ))
+                    );
+                })
             )}
 
             {/* Filters at bottom - smaller and subtle */}

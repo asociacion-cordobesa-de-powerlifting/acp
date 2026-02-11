@@ -411,6 +411,8 @@ export const coachesRouter = {
             });
 
             // Filter to only include non-deleted coaches and return formatted data
+            const roleOrder: Record<string, number> = { head_coach: 1, assistant_coach: 2 };
+
             return registrations
                 .filter(r => !r.coach.deletedAt)
                 .map(r => ({
@@ -422,7 +424,12 @@ export const coachesRouter = {
                     teamId: r.coach.teamId,
                     teamSlug: r.coach.team?.slug || 'unknown',
                     teamName: r.coach.team?.user?.name || r.coach.team?.slug || 'Sin equipo',
-                }));
+                }))
+                .sort((a, b) => {
+                    const roleDiff = (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
+                    if (roleDiff !== 0) return roleDiff;
+                    return a.fullName.localeCompare(b.fullName, 'es');
+                });
         }),
 
     // Admin remove a coach from an event

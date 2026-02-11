@@ -62,7 +62,7 @@ export const WEIGHT_CLASSES: Selection<WeightClassEnum>[] = [
 export const DIVISION_RULES = [
     { id: "subjunior" as const, min: 14, max: 18, label: "Sub-Junior" },
     { id: "junior" as const, min: 19, max: 23, label: "Junior" },
-    { id: "open" as const, min: 20, max: 999, label: "Open" }, // Special rule: >= 20
+    { id: "open" as const, min: 19, max: 999, label: "Open" },
     { id: "master_1" as const, min: 40, max: 49, label: "Master 1" },
     { id: "master_2" as const, min: 50, max: 59, label: "Master 2" },
     { id: "master_3" as const, min: 60, max: 69, label: "Master 3" },

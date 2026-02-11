@@ -218,6 +218,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
                         <RegistrationsTable
                             registrations={registrations}
                             availableTournaments={event.tournaments}
+                            eventYear={new Date(event.startDate).getFullYear()}
                         />
                     ) : (
                         <div className="text-center py-12 text-muted-foreground border rounded-lg bg-card">
