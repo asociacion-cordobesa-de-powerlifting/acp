@@ -275,7 +275,7 @@ export const registrationsRouter = {
                             }).returning();
                             if (newReg) processedRegistrationIds.add(newReg.id);
                         } else {
-                            if (existing.status === 'pending' && existing.weightClass !== nom.weightClass) {
+                            if (existing.weightClass !== nom.weightClass) {
                                 await tx.update(registrations)
                                     .set({ weightClass: nom.weightClass })
                                     .where(eq(registrations.id, existing.id));
@@ -416,7 +416,7 @@ export const registrationsRouter = {
                             }).returning();
                             if (newReg) processedRegistrationIds.add(newReg.id);
                         } else {
-                            if (existing.status === 'pending' && existing.weightClass !== nom.weightClass) {
+                            if (existing.weightClass !== nom.weightClass) {
                                 await tx.update(registrations)
                                     .set({ weightClass: nom.weightClass })
                                     .where(eq(registrations.id, existing.id));
