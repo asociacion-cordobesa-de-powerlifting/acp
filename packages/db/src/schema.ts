@@ -168,7 +168,7 @@ export const athlete = pgTable("athlete", (t) => ({
     .notNull()
     .references(() => teamData.id, { onDelete: "cascade" }),
   fullName: t.text().notNull(),
-  dni: t.text().notNull().unique(),
+  dni: t.text().notNull(),
   birthYear: t.integer().notNull(),
   gender: genderEnum("gender").notNull(),
   goodliftRef: t.text(),
@@ -178,7 +178,14 @@ export const athlete = pgTable("athlete", (t) => ({
   squatBestKg: t.real().notNull(),
   benchBestKg: t.real().notNull(),
   deadliftBestKg: t.real().notNull(),
-}));
+}), (table) => [
+  {
+    name: "athlete_team_dni_active_unique",
+    columns: [table.teamId, table.dni],
+    unique: true,
+    where: sql`${table.deletedAt} IS NULL`,
+  },
+]);
 
 export const athleteRelations = relations(athlete, ({ one, many }) => ({
   team: one(teamData, {
